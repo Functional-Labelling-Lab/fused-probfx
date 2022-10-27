@@ -52,7 +52,7 @@ instance Show a => Show (Dist a) where
 instance Eq (Dist a) where
   (==) (Dist d1 _ _) (Dist d2 _ _) = d1 == d2
 
--- | The effect @Sample@ for sampling from distirbutions
+-- | The effect @Sample@ for sampling from distribution
 data Sample a where
   Sample  :: PrimDist a     -- ^ distribution to sample from
           -> Addr           -- ^ address of @Sample@ operation
