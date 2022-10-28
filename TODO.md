@@ -8,6 +8,16 @@ Replace `Effects/State.hs` with `Control.Effect.State`
 - already have `Get`, `Put`, `Modify`
 - need to understand `handleState`
 
+[Effects.State](https://hackage.haskell.org/package/fused-effects-1.1.2.1/docs/Control-Effect-State.html)
+probfx      => fused-effects
+State(..)   => State
+get         => get
+put         => put
+modify      => modify
+handleState => runState
+
+
+
 Replace `Effects/Writer.hs` with `Control.Effect.Writer`
 - `write` -> streams
 - `tell` writes writes w to program
