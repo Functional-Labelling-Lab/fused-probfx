@@ -21,10 +21,6 @@ import Env ( Observables )
 {- | A coin-flip model that draws a coin-bias @p@ between 0 and 1 from a uniform
      distribution, and uses this to draw a boolean @y@ representing heads or tails.
 -}
--- coinFlip
---   :: (Observables env '["p"] Double
---     , Observables env '["y"] Bool)
---   => Model env sig m Bool
 coinFlip
   :: (Observables env '["p"] Double
     , Observables env '[ "y"] Bool)

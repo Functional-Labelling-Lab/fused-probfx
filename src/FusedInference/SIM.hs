@@ -21,6 +21,7 @@ import Model (Model)
 import Env (Env)
 import Sampler (Sampler)
 import qualified Data.Map as Map
+import FusedEffects.ObsReader (ObsReader)
 
 -- | Top-level wrapper for simulating from a model
 simulate :: (FromSTrace env,

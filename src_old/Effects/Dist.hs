@@ -4,19 +4,6 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE RankNTypes #-}
 
 {- | The effects for primitive distributions, sampling, and observing.
 -}
@@ -28,6 +15,7 @@ module Effects.Dist (
   , Addr
   -- ** Dist effect
   , Dist(..)
+  , handleDist
   -- ** Sample effect
   , Sample(..)
   , pattern Samp
@@ -41,9 +29,6 @@ import Data.Maybe ( fromMaybe )
 import Prog ( call, discharge, Member(..), Prog(..), EffectSum(..) )
 import qualified Data.Map as Map
 import PrimDist ( PrimDist )
-import Data.Kind (Type)
-import Control.Algebra (type (:+:) (L, R), Algebra(..), Has, send)
-import qualified Control.Algebra as Control.Algebra.Handler
 
 {- $Address
    Run-time identifiers for probabilistic operations
@@ -55,16 +40,16 @@ type Tag  = String
 type Addr = (Tag, Int)
 
 -- | The effect @Dist@ for primitive distributions
-data Dist (a :: Type) (m :: Type -> Type) (k :: Type) = Dist
+data Dist a = Dist
   { getPrimDist :: PrimDist a  -- ^ primitive distribution
   , getObs :: Maybe a          -- ^ optional observed value
   , getTag :: Maybe Tag        -- ^ optional observable variable name
   }
 
-instance Show a => Show (Dist a m k) where
+instance Show a => Show (Dist a) where
   show (Dist d y tag) = "Dist(" ++ show d ++ ", " ++ show y ++ ", " ++ show tag ++ ")"
 
-instance Eq (Dist a m k) where
+instance Eq (Dist a) where
   (==) (Dist d1 _ _) (Dist d2 _ _) = d1 == d2
 
 -- | The effect @Sample@ for sampling from distribution
@@ -89,35 +74,22 @@ pattern Obs :: Member Observe es => PrimDist x -> x -> Addr -> EffectSum es x
 pattern Obs d y α <- (prj -> Just (Observe d y α))
 
 -- | Handle the @Dist@ effect to a @Sample@ or @Observe@ effect and assign an address
+handleDist :: (Member Sample es, Member Observe es)
+  => Prog (Dist : es) a
+  -> Prog es a
+handleDist = loop 0 Map.empty
+  where
+  loop :: (Member Sample es, Member Observe es)
+       => Int -> Map Tag Int -> Prog (Dist : es) a -> Prog es a
+  loop _ _ (Val x) = return x
+  loop counter tagMap (Op u k) = case discharge u of
+    Right (Dist d maybe_y maybe_tag) ->
+         case maybe_y of
+              Just y  -> do call (Observe d y (tag, tagIdx)) >>= k'
+              Nothing -> do call (Sample d (tag, tagIdx))    >>= k'
+          where tag     = fromMaybe (show counter) maybe_tag
+                tagIdx  = Map.findWithDefault 0 tag tagMap
+                tagMap' = Map.insert tag (tagIdx + 1) tagMap
+                k'      = loop (counter + 1) tagMap' . k
+    Left  u'  -> Op u' (loop counter tagMap . k)
 
-newtype DistC a m k = DistC {runDist :: m k}
-  deriving (Applicative, Functor, Monad)
-
-instance Algebra sig m => Algebra (Dist a :+: sig) (DistC a m) where
-  alg :: (Algebra sig m, Functor ctx)
-      => Control.Algebra.Handler.Handler ctx n (DistC a m)
-      -> (Dist a :+: sig) n a1
-      -> ctx ()
-      -> DistC a m (ctx a1)
-  alg = loop 0 Map.empty
-    where
-      loop :: (Algebra sig m, Functor ctx)
-        => Int
-        -> Map Tag Int
-        -> Control.Algebra.Handler.Handler ctx n (DistC a m)
-        -> (Dist a :+: sig) n a1
-        -> ctx ()
-        -> DistC a m (ctx a1)
-      loop counter tagMap hdl sig ctx = DistC $ case sig of
-        L (Dist primDist obs tag) -> case obs of
-                  Just y  -> do send (observe primDist y (tag, tagIdx)) >>= k'
-                  Nothing -> do send (sample primDist (tag, tagIdx))    >>= k'
-              where tag     = fromMaybe (show counter) tag
-                    tagIdx  = Map.findWithDefault 0 tag tagMap
-                    tagMap' = Map.insert tag (tagIdx + 1) tagMap
-                    
-                    k'      = loop (counter + 1) tagMap' . k
-
-                    observe = undefined
-                    sample = undefined
-        R  other  -> alg (runDist . hdl) other ctx

@@ -55,7 +55,6 @@ import Env ( varToStr, Env, ObsVar, Observable )
 import PrimDist ( PrimVal, PrimDist(..) )
 import Prog ( call, Member, Prog )
 import qualified OpenSum
-import Control.Algebra (Has)
 
 {- | Models are parameterised by:
 
@@ -68,13 +67,9 @@ import Control.Algebra (Has)
     A model initially consists of (at least) two effects: @Dist@ for calling primitive distributions
     and @ObsReader env@ for reading from @env@.
 -}
-
-newtype Model env sig m a =
-  Model { runModel :: (Has Dist sig m, Has (ObsReader env) sig m) => m a }
+newtype Model env es a =
+  Model { runModel :: (Member Dist es, Member (ObsReader env) es) => Prog es a }
   deriving Functor
--- newtype Model env es a =
---   Model { runModel :: (Member Dist es, Member (ObsReader env) es) => Prog es a }
---   deriving Functor
 
 instance Applicative (Model env es) where
   pure x = Model $ pure x
