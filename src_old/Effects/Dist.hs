@@ -85,11 +85,23 @@ handleDist = loop 0 Map.empty
   loop counter tagMap (Op u k) = case discharge u of
     Right (Dist d maybe_y maybe_tag) ->
          case maybe_y of
-              Just y  -> do call (Observe d y (tag, tagIdx)) >>= k'
-              Nothing -> do call (Sample d (tag, tagIdx))    >>= k'
-          where tag     = fromMaybe (show counter) maybe_tag
+              Just y  -> do
+                x <- call (Observe d y (tag, tagIdx))
+                k' x
+              Nothing -> do
+                x <- call (Sample d (tag, tagIdx))
+                k' x
+          where
+                -- Get the tag this distribution is related to
+                -- If user hasn't specified tag, give it one via counter
+                tag     = fromMaybe (show counter) maybe_tag
+                
+                -- Increment the count associated with this tag
                 tagIdx  = Map.findWithDefault 0 tag tagMap
                 tagMap' = Map.insert tag (tagIdx + 1) tagMap
-                k'      = loop (counter + 1) tagMap' . k
+
+                -- Continue making this tagMap'
+                k' x    = loop (counter + 1) tagMap' (k x)
+
     Left  u'  -> Op u' (loop counter tagMap . k)
 

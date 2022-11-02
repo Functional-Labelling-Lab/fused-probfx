@@ -67,7 +67,10 @@ nil = ENil
 
 infixr 5 <:>
 -- | Prepend a variable assignment to a model environment
-(<:>) :: UniqueKey x env ~ True => Assign (ObsVar x) [a] -> Env env -> Env ((x ':= a) ': env)
+(<:>) :: UniqueKey x env ~ True
+      => Assign (ObsVar x) [a]
+      -> Env env
+      -> Env ((x ':= a) ': env)
 (_ := as) <:> env = ECons as env
 
 instance (KnownSymbol x, Show a, Show (Env env)) => Show (Env ((x := a) ': env)) where

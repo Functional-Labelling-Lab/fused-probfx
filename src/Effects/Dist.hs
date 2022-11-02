@@ -34,6 +34,8 @@ module Effects.Dist (
   -- ** Observe effect
   , Observe(..)
   , pattern Obs
+  , handleDist
+  , handleDist
   ) where
 
 import Data.Map (Map)
@@ -93,31 +95,42 @@ pattern Obs d y α <- (prj -> Just (Observe d y α))
 newtype DistC a m k = DistC {runDist :: m k}
   deriving (Applicative, Functor, Monad)
 
-instance Algebra sig m => Algebra (Dist a :+: sig) (DistC a m) where
-  alg :: (Algebra sig m, Functor ctx)
-      => Control.Algebra.Handler.Handler ctx n (DistC a m)
-      -> (Dist a :+: sig) n a1
-      -> ctx ()
-      -> DistC a m (ctx a1)
-  alg = loop 0 Map.empty
-    where
-      loop :: (Algebra sig m, Functor ctx)
-        => Int
-        -> Map Tag Int
-        -> Control.Algebra.Handler.Handler ctx n (DistC a m)
-        -> (Dist a :+: sig) n a1
-        -> ctx ()
-        -> DistC a m (ctx a1)
-      loop counter tagMap hdl sig ctx = DistC $ case sig of
-        L (Dist primDist obs tag) -> case obs of
-                  Just y  -> do send (observe primDist y (tag, tagIdx)) >>= k'
-                  Nothing -> do send (sample primDist (tag, tagIdx))    >>= k'
-              where tag     = fromMaybe (show counter) tag
-                    tagIdx  = Map.findWithDefault 0 tag tagMap
-                    tagMap' = Map.insert tag (tagIdx + 1) tagMap
-                    
-                    k'      = loop (counter + 1) tagMap' . k
+-- instance Algebra sig m => Algebra (Dist a :+: sig) (DistC a m) where
+--   alg :: (Algebra sig m, Functor ctx)
+--       => Control.Algebra.Handler.Handler ctx n (DistC a m)
+--       -> (Dist a :+: sig) n a1
+--       -> ctx ()
+--       -> DistC a m (ctx a1)
+--   alg = loop 0 Map.empty
+--     where
+--       loop :: (Algebra sig m, Functor ctx)
+--         => Int
+--         -> Map Tag Int
+--         -> Control.Algebra.Handler.Handler ctx n (DistC a m)
+--         -> (Dist a :+: sig) n a1
+--         -> ctx ()
+--         -> DistC a m (ctx a1)
+--       loop counter tagMap hdl sig ctx = DistC $ case sig of
+--         L (Dist primDist mObs mTag) -> case mObs of
+--                   Just obs  -> do 
+--                     x <- send (observe primDist obs (tag, tagIdx))
+--                     pure $ x <$ ctx'
+--                   Nothing -> do 
+--                     x <- send (sample primDist (tag, tagIdx))
+--                     pure $ x <$ ctx'
+--               where 
+--                     tag     = fromMaybe (show counter) mTag
+--                     tagIdx  = Map.findWithDefault 0 tag tagMap
+--                     tagMap' = Map.insert tag (tagIdx + 1) tagMap
 
-                    observe = undefined
-                    sample = undefined
-        R  other  -> alg (runDist . hdl) other ctx
+--                     -- ctx' = loop (counter + 1) tagMap' hdl sig' ctx 
+--                     -- ctx' :: a
+--                     rf = loop (counter + 1) tagMap' hdl sig
+
+--                     ctx' = rf <$> ctx
+
+--                     observe = undefined
+--                     sample = undefined
+--         R  other  -> alg (runDist . hdl) other ctx
+
+handleDist = undefined
