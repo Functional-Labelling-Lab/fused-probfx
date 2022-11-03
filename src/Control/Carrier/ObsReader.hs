@@ -14,6 +14,10 @@
 {- | The effect for reading observable variables from a model environment.
 -}
 
+module Control.Carrier.ObsReader (
+    ObsReaderC(..)
+) where
+
 import Control.Algebra
 import Data.Kind (Type)
 import Control.Effect.ObsReader (ObsReader(..))
