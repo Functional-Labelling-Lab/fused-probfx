@@ -20,12 +20,7 @@ module PrimDist (
   , sample
   -- * Density
   , prob
-  , logProb
-  -- ** Address
-  -- $Address
-  , Tag
-  , Addr
-  ) where
+  , logProb) where
 
 import Data.Kind ( Constraint )
 import Numeric.Log ( Log(..) )
@@ -272,12 +267,3 @@ logProb :: PrimDist a -- ^ distribution
   -> a                -- ^ observed value
   -> Double           -- ^ log density
 logProb d = log . prob d
-
-{- $Address
-   Run-time identifiers for probabilistic operations
--}
-
--- | An observable variable name assigned to a primitive distribution, representing a compile-time identifier
-type Tag  = String
--- | An observable variable name and the index of its run-time occurrence, representing a run-time identifier
-type Addr = (Tag, Int)

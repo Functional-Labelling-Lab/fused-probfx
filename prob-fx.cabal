@@ -71,7 +71,8 @@ library
                       mwc-probability               >= 2.3.1 && < 2.4,
                       statistics                    >= 0.16.1 && < 0.17,
                       criterion                     >= 1.5.13 && < 1.6,
-                      split                         >= 0.2.3 && < 0.3
+                      split                         >= 0.2.3 && < 0.3,
+                      fused-effects
 
   -- Directories containing source files.
   hs-source-dirs:      src
