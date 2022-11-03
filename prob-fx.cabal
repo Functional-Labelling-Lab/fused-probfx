@@ -118,9 +118,25 @@ executable bar-fx
   hs-source-dirs: src
   main-is:        Bar.hs
   build-depends:  base,
-                  prob-fx,
-                  lens,
+                  prob-fx,           
+                  ghc-prim,
+                  deepseq,
+                  containers,
+                  primitive,
+                  transformers,
+                  random,
+                  mtl,
+                  vector,
+                  dirichlet,
+                  log-domain,
+                  mwc-random,
                   extensible,
+                  membership,
+                  lens,
+                  mwc-probability,
+                  statistics,
+                  criterion,
+                  split,
                   fused-effects
 
 test-suite tests

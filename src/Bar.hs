@@ -18,6 +18,10 @@ import Control.Algebra (type (:+:)(L))
 import Control.Algebra (type (:+:)(R))
 import Data.Functor (($>))
 import Control.Algebra (run)
+import Control.Effect.Dist (Dist (Dist))
+import Model (normal')
+import PrimDist (PrimDist(NormalDist))
+import Control.Carrier.Dist (DistC(runDistC))
 
 
 foo :: (Has Choose sig m) => m Int
@@ -47,10 +51,11 @@ instance Algebra sig m => Algebra (Foo :+: sig) (FooC m) where
     L AskFoo -> pure $ 5 <$ ctx
     R other  -> alg (runFoo . hdl) other ctx
 
-action :: (Has Foo sig m) => m Int
+action :: (Has (Dist Double) sig m) => m Double
 action = do
-  askFoo
+  x <- send (Dist (NormalDist 0 1) Nothing Nothing)
+  return x
 
 main :: IO ()
 main = do
-  print $ run $ runFoo $ action
+  print $ run $ runDistC $ action
