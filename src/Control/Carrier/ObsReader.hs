@@ -36,11 +36,15 @@ runObsReader env = evalState env . runObsReaderC
 instance (Algebra sig m) => Algebra (ObsReader env :+: sig) (ObsReaderC env m) where
     alg hdl sig ctx = ObsReaderC $ case sig of
         L (Ask x) -> do
+            -- Use nested state effect to get current env
             env <- State.get @(Env env)
-            let vs       = get x env
-                maybe_v  = listToMaybe vs
-                env'     = set x (drop 1 vs) env
-            State.put env'
-            pure $ maybe_v <$ ctx
-        
-        R other   -> alg (runObsReaderC . hdl) (R other) ctx
+
+            case get x env of
+                -- No values for x: return Nothing
+                [] -> pure $ Nothing <$ ctx
+                -- Values for x: pop and return first value
+                (v : vs) -> do
+                    State.put $ set x vs env
+                    pure $ Just v <$ ctx
+    
+        R other -> alg (runObsReaderC . hdl) (R other) ctx
