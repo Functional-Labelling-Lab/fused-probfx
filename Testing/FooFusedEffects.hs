@@ -18,8 +18,8 @@ import Control.Algebra (Has, send, Algebra (alg), type (:+:) (L), run)
 import Control.Effect.Sum (type (:+:)(R), Member)
 
 -- import Effects.ObsReader (ObsReader (Ask), ask, ObsReaderC, runObsReader)
-import Control.Effect.ObsReader (ObsReader(..))
-import Control.Carrier.ObsReader (ObsReaderC)
+import Control.Effect.ObsReader (ObsReader(..), ask)
+import Control.Carrier.ObsReader (ObsReaderC, runObsReader)
 
 import Env (Observable, Assign ((:=)), (<:>), nil, LookupType, ObsVar (ObsVar), Env)
 

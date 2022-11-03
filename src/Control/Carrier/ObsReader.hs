@@ -15,7 +15,8 @@
 -}
 
 module Control.Carrier.ObsReader (
-    ObsReaderC(..)
+    ObsReaderC(..),
+    runObsReader
 ) where
 
 import Control.Algebra

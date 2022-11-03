@@ -9,7 +9,8 @@
 -}
 
 module Control.Effect.ObsReader (
-    ObsReader(..)
+    ObsReader(..),
+    ask
   ) where
 
 import Control.Algebra
