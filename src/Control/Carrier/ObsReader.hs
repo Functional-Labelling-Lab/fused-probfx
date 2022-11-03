@@ -22,12 +22,15 @@ import Control.Algebra
 import Data.Kind (Type)
 import Control.Effect.ObsReader (ObsReader(..))
 import qualified Control.Effect.State as State
-import Control.Carrier.State.Church (StateC)
+import Control.Carrier.State.Strict (StateC, runState, evalState)
 import Env (Env, ObsVar, Observable(..), Assign)
 import Data.Maybe (listToMaybe)
 
 newtype ObsReaderC env m k = ObsReaderC { runObsReaderC :: StateC (Env env) m k }
     deriving (Functor, Applicative, Monad)
+
+runObsReader :: Functor m => Env env -> ObsReaderC env m a -> m a
+runObsReader env = evalState env . runObsReaderC
 
 instance (Algebra sig m) => Algebra (ObsReader env :+: sig) (ObsReaderC env m) where
     alg hdl sig ctx = ObsReaderC $ case sig of
