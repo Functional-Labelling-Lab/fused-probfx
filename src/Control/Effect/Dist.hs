@@ -18,8 +18,8 @@ import PrimDist (PrimDist, Tag, Addr)
 import Data.Kind (Type)
 
 -- | The effect @Dist@ for primitive distributions
-data Dist (m :: Type -> Type) (k :: Type) where
-    Dist :: PrimDist k -- ^ primitive distribution
-         -> Maybe k    -- ^ optional observed value
+data Dist a (m :: Type -> Type) (k :: Type) where
+    Dist :: PrimDist a -- ^ primitive distribution
+         -> Maybe a    -- ^ optional observed value
          -> Maybe Tag  -- ^ optional observable variable name
-         -> Dist m k
+         -> Dist a m k
