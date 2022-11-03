@@ -13,7 +13,7 @@ import PrimDist (PrimDist, Tag, Addr)
 import Data.Kind (Type)
 
 -- | The effect @Sample@ for sampling from distirbutions
-data Sample (m :: Type -> Type) (k :: Type) where
-    Sample :: PrimDist k   -- ^ distribution to sample from
+data Sample a (m :: Type -> Type) (k :: Type) where
+    Sample :: PrimDist a   -- ^ distribution to sample from
            -> Addr         -- ^ address of @Sample@ operation
-           -> Sample m k
+           -> Sample a m k
