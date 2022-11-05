@@ -10,8 +10,8 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ImpredicativeTypes #-}
-
 import Control.Algebra
+    ( Has, Algebra(..), type (:+:)(..), Handler, send )
 import Control.Effect.Dist (Dist(..))
 import Control.Effect.Sample (Sample(..))
 import Control.Effect.Observe (Observe)
@@ -20,41 +20,38 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Effects.Dist (Tag)
 import Control.Effect.Observe (Observe(..))
+import qualified Control.Effect.State as State
+import Control.Carrier.State.Strict (StateC, runState, evalState)
+import Control.Algebra (run)
+import Data.Functor.Identity (Identity)
 
-newtype DistC a m b = DistC { runDistC :: m b }
+newtype DistC a m k = DistC { runDistC :: StateC (Int, Map.Map Tag Int) m k }
     deriving (Functor, Applicative, Monad)
 
-instance (Algebra sig m, Has (Sample b) sig m, Has (Observe b) sig m) => Algebra (Dist b :+: sig) (DistC b m) where
-  alg :: forall ctx n a . Functor ctx
-      => Handler ctx n (DistC b m) --
-      -> (Dist b :+: sig) n a
-      -> ctx ()
-      -> DistC b m (ctx a)
-  alg = loop 0 Map.empty
-    where
-      loop
-          :: Int
-          -> Map.Map Tag Int
-          -> Handler ctx n (DistC b m) --
-          -> (Dist b :+: sig) n a
-          -> ctx ()
-          -> DistC b m (ctx a)
-      loop counter tagMap hdl sig@(L (Dist primDist mObs mTag)) ctx = DistC $ case mObs of
-        Just obs -> do 
-          x <- send (Observe primDist obs (tag, tagIdx))
-          ctx' <- recurCtx
-          pure $ x <$ ctx'
-        Nothing -> do
-          x <- send (Sample primDist (tag, tagIdx))
-          ctx' <- recurCtx
-          pure $ x <$ ctx'
-        where
-          tag     = fromMaybe (show counter) mTag
-          tagIdx  = Map.findWithDefault 0 tag tagMap
-          tagMap' = Map.insert tag (tagIdx + 1) tagMap
-          recurCtx = runDistC $ loop (counter + 1) tagMap' (hdl) sig ctx
+runDist :: Functor m => DistC a m b -> m b
+runDist = evalState (0, Map.empty) . runDistC
 
-      loop counter tagMap hdl (R other) ctx = DistC $ alg hdl' other ctx
-        where
-          hdl' :: Handler ctx n m
-          hdl' x = runDistC (hdl x)
+instance (Algebra sig m, Has (Sample b) sig m, Has (Observe b) sig m) => Algebra (Dist b :+: sig) (DistC b m) where
+  alg hdl sig ctx = DistC $ case sig of
+    L (Dist primDist mObs mTag) -> do
+      -- Get current counter and tagMap
+      (counter, tagMap) <- State.get @(Int, Map.Map Tag Int) 
+
+      -- Calculate tag and tagIdx to pass to the sample/observe
+      let tag = fromMaybe (show counter) mTag
+      let tagIdx = Map.findWithDefault 0 tag tagMap
+
+      -- Increment the counter and the address
+      let counter' = counter + 1
+      let tagMap' = Map.insert tag (tagIdx + 1) tagMap
+      State.put (counter', tagMap')
+
+      x <- case mObs of
+        -- Variable to observe from set, replace this dist with an observe call
+        Just obs -> send $ Observe primDist obs (tag, tagIdx)
+        -- No value to observe supplied, replace dist with 
+        Nothing -> send $ Sample primDist (tag, tagIdx)
+
+      pure $ x <$ ctx
+
+    R other -> alg (runDistC . hdl) (R other) ctx
