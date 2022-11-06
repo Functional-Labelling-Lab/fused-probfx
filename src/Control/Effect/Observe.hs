@@ -13,8 +13,8 @@ import PrimDist (PrimDist, Tag, Addr)
 import Data.Kind (Type)
 
 -- | The effect @Observe@ for conditioning against observed values
-data Observe a (m :: Type -> Type) (k :: Type) where
-    Observe :: PrimDist a    -- ^ distribution to condition with
-            -> a             -- ^ observed value
+data Observe (m :: Type -> Type) (k :: Type) where
+    Observe :: PrimDist k    -- ^ distribution to condition with
+            -> k             -- ^ observed value
             -> Addr          -- ^ address of @Observe@ operation
-            -> Observe a m k
+            -> Observe m k
