@@ -10,6 +10,12 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ImpredicativeTypes #-}
+
+module Control.Carrier.Dist (
+    DistC(..),
+    runDist
+) where
+
 import Control.Algebra
     ( Has, Algebra(..), type (:+:)(..), Handler, send )
 import Control.Effect.Dist (Dist(..))
