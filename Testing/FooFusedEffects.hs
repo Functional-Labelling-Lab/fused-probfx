@@ -71,10 +71,9 @@ main = do
     let fuckoff :: LookupType "x" '["x" ':= Int]
         fuckoff = 5
 
-    let s = run $ runObsReader env' action'
+    -- let s = run $ runObsReader env' action'
 
-    print s
---   print $ run $ handleFoo action
+    print "Hello World"
 
 
 -- #foo :: ObsVar "foo"
