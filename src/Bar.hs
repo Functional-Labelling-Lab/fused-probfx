@@ -1,61 +1,50 @@
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE ExplicitNamespaces #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE OverloadedLabels #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant return" #-}
 
-import Control.Algebra (Has)
-import Control.Carrier.Choose.Church (Choose, runChoose)
-import Data.Functor.Identity (Identity (Identity, runIdentity))
-import Control.Effect.Labelled (send, Algebra (alg))
-import Control.Effect.Choose (Choose(..))
-import Control.Algebra (Algebra)
-import Control.Algebra (type (:+:))
-import Control.Algebra (type (:+:)(L))
-import Control.Algebra (type (:+:)(R))
-import Data.Functor (($>))
-import Control.Algebra (run)
-import Control.Effect.Dist (Dist (Dist))
-import Model (normal')
-import PrimDist (PrimDist(NormalDist))
-import Control.Carrier.Dist (DistC(runDistC))
+{- | A coin-flip model for demonstrating how primitive distributions work in ProbFX.
+-}
 
+import Prog ( call )
+import Effects.ObsReader ( ObsReader(Ask) )
+import Model ( Model(Model), bernoulli, uniform, handleCore )
+import PrimDist ( PrimDist(BernoulliDist, UniformDist) )
+import Effects.Dist ( Dist(Dist) )
+import Data.Kind (Constraint)
+import Env ( Observables, nil, (<:>), Assign (..) )
+import Prog (run)
+import Inference.SIM (runSimulate)
+import Sampler (sampleIO)
 
-foo :: (Has Choose sig m) => m Int
-foo = do
-  x <- send $ Choose
-  return $ if x then 1 else 2
+{- | A coin-flip model that draws a coin-bias @p@ between 0 and 1 from a uniform
+     distribution, and uses this to draw a boolean @y@ representing heads or tails.
+-}
+coinFlip
+  :: (Observables env '["p"] Double
+    , Observables env '[ "y"] Bool)
+  => Model env es Bool
+coinFlip = do
+  p <- uniform 0 1 #p
+  y <- bernoulli p #y
+  return y
 
-
-bar :: Identity Int
-bar = runChoose (\x y -> Identity $ runIdentity x + runIdentity y) Identity foo
-
-data Foo (m :: * -> *) k where
-  AskFoo :: Foo m Int
-
-askFoo :: (Has Foo sig m) => m Int 
-askFoo = send AskFoo
-
-newtype FooC m k = FooC {runFoo :: m k}
-  deriving (Applicative, Functor, Monad)
-
--- runFoo :: FooC m k -> m k
--- runFoo (FooC runFooC) = runFooC
-  
-
-instance Algebra sig m => Algebra (Foo :+: sig) (FooC m) where
-  alg hdl sig ctx = FooC $ case sig of
-    L AskFoo -> pure $ 5 <$ ctx
-    R other  -> alg (runFoo . hdl) other ctx
-
-action :: (Has (Dist Double) sig m) => m Double
-action = do
-  x <- send (Dist (NormalDist 0 1) Nothing Nothing)
-  return x
 
 main :: IO ()
 main = do
-  print $ run $ runDistC $ action
+  let env = #p := [0.5] <:> #y := [] <:> nil
+
+  let loop :: Int -> IO [Bool]
+      loop 0 = do
+        return []
+      loop n = do
+        (x, _) <- sampleIO $ runSimulate coinFlip env
+        xs <- loop (n - 1)
+        return $ x : xs
+
+  xs <- loop 100
+
+  print (length $ filter id xs)
+

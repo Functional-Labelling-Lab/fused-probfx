@@ -117,6 +117,22 @@ executable bar-fx
   default-language: Haskell2010
   hs-source-dirs: src
   main-is:        Bar.hs
+  other-modules:  Effects.Dist,
+                  Effects.Lift,
+                  Effects.ObsReader,
+                  Effects.State,
+                  Effects.Writer,
+                  Inference.LW,
+                  Inference.MH,
+                  Inference.SIM,
+                  Env,
+                  FindElem,
+                  Model,
+                  OpenSum,
+                  PrimDist,
+                  Prog,
+                  Sampler,
+                  Trace,
   build-depends:  base,
                   prob-fx,           
                   ghc-prim,
