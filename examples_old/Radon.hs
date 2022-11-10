@@ -1,9 +1,9 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE OverloadedLabels    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TypeOperators       #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant return" #-}
 
@@ -14,13 +14,15 @@
 
 module Radon where
 
-import Control.Monad ( replicateM )
-import Model ( Model, normal, halfNormal, halfCauchy' )
-import Env ( Observables, Observable(get), Assign((:=)), Env(ENil), (<:>) )
-import Sampler ( Sampler, liftS )
-import DataSets ( n_counties, logRadon, countyIdx, dataFloorValues )
-import Inference.SIM as SIM ( simulate )
-import Inference.MH as MH ( mh )
+import           Control.Monad (replicateM)
+import           DataSets      (countyIdx, dataFloorValues, logRadon,
+                                n_counties)
+import           Env           (Assign ((:=)), Env (ENil), Observable (get),
+                                Observables, (<:>))
+import           Inference.MH  as MH (mh)
+import           Inference.SIM as SIM (simulate)
+import           Model         (Model, halfCauchy', halfNormal, normal)
+import           Sampler       (Sampler, liftS)
 
 -- | Return all the positions that a value occurs within a list
 findIndexes :: Eq a => a -> [a] -> [Int]

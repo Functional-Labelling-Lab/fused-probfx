@@ -1,9 +1,9 @@
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds        #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE GADTs            #-}
+{-# LANGUAGE PatternSynonyms  #-}
+{-# LANGUAGE TypeOperators    #-}
+{-# LANGUAGE ViewPatterns     #-}
 
 {- | The effects for primitive distributions, sampling, and observing.
 -}
@@ -24,11 +24,12 @@ module Effects.Dist (
   , pattern Obs
   ) where
 
-import Data.Map (Map)
-import Data.Maybe ( fromMaybe )
-import Prog ( call, discharge, Member(..), Prog(..), EffectSum(..) )
-import qualified Data.Map as Map
-import PrimDist ( PrimDist )
+import           Data.Map   (Map)
+import qualified Data.Map   as Map
+import           Data.Maybe (fromMaybe)
+import           PrimDist   (PrimDist)
+import           Prog       (EffectSum (..), Member (..), Prog (..), call,
+                             discharge)
 
 {- $Address
    Run-time identifiers for probabilistic operations
@@ -42,8 +43,8 @@ type Addr = (Tag, Int)
 -- | The effect @Dist@ for primitive distributions
 data Dist a = Dist
   { getPrimDist :: PrimDist a  -- ^ primitive distribution
-  , getObs :: Maybe a          -- ^ optional observed value
-  , getTag :: Maybe Tag        -- ^ optional observable variable name
+  , getObs      :: Maybe a          -- ^ optional observed value
+  , getTag      :: Maybe Tag        -- ^ optional observable variable name
   }
 
 instance Show a => Show (Dist a) where

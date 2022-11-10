@@ -1,12 +1,12 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE EmptyCase              #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE EmptyCase #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE UndecidableInstances   #-}
 
 {- | An open sum implementation for value types.
 -}
@@ -15,12 +15,13 @@ module OpenSum (
     OpenSum(..)
   , Member(..)) where
 
-import Data.Kind (Type, Constraint)
-import Data.Typeable ( Typeable )
-import FindElem ( Idx(..), FindElem(..) )
-import GHC.TypeLits (Nat, KnownNat, natVal, TypeError, ErrorMessage (Text, (:$$:), (:<>:), ShowType))
-import qualified GHC.TypeLits as TL
-import Unsafe.Coerce ( unsafeCoerce )
+import           Data.Kind     (Constraint, Type)
+import           Data.Typeable (Typeable)
+import           FindElem      (FindElem (..), Idx (..))
+import           GHC.TypeLits  (ErrorMessage (ShowType, Text, (:$$:), (:<>:)),
+                                KnownNat, Nat, TypeError, natVal)
+import qualified GHC.TypeLits  as TL
+import           Unsafe.Coerce (unsafeCoerce)
 
 -- | Open sum of value types
 data OpenSum (as :: [*]) where
@@ -37,7 +38,7 @@ instance forall a as. (Eq a, Eq (OpenSum as)) => Eq (OpenSum (a : as)) where
     UnsafeOpenSum (i - 1) x == (UnsafeOpenSum (j - 1) y :: OpenSum as)
 
 instance forall a as. (Show a, Show (OpenSum as)) => Show (OpenSum (a : as)) where
-  show (UnsafeOpenSum i a) 
+  show (UnsafeOpenSum i a)
     | i == 0    = show (unsafeCoerce a :: a)
     | otherwise = show (UnsafeOpenSum (i - 1) a :: OpenSum as)
 

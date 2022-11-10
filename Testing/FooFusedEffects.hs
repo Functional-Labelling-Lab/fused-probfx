@@ -1,43 +1,46 @@
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE UndecidableInstances       #-}
 -- {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE AllowAmbiguousTypes        #-}
+{-# LANGUAGE OverloadedLabels           #-}
 
-import Control.Algebra (Has, send, Algebra (alg), type (:+:) (L), run)
-import Control.Effect.Sum (type (:+:)(R), Member)
+import           Control.Algebra           (Algebra (alg), Has, run, send,
+                                            type (:+:) (L))
+import           Control.Effect.Sum        (Member, type (:+:) (R))
 
 -- import Effects.ObsReader (ObsReader (Ask), ask, ObsReaderC, runObsReader)
-import Control.Effect.ObsReader (ObsReader(..), ask)
-import Control.Carrier.ObsReader (ObsReaderC, runObsReader)
+import           Control.Carrier.ObsReader (ObsReaderC, runObsReader)
+import           Control.Effect.ObsReader  (ObsReader (..), ask)
 
-import Env (Observable, Assign ((:=)), (<:>), nil, LookupType, ObsVar (ObsVar), Env)
+import           Env                       (Assign ((:=)), Env, LookupType,
+                                            ObsVar (ObsVar), Observable, nil,
+                                            (<:>))
 
-import Control.Monad.Reader (ReaderT (runReaderT))
-import qualified Control.Algebra as Control.Algebra.Handler
-import Data.Functor (($>))
-import GHC.Base (Symbol)
-import Data.Kind (Type)
+import qualified Control.Algebra           as Control.Algebra.Handler
+import           Control.Monad.Reader      (ReaderT (runReaderT))
+import           Data.Functor              (($>))
+import           Data.Kind                 (Type)
+import           GHC.Base                  (Symbol)
 
 data Foo (m :: * -> *) k where
   AskFoo :: Foo m Int
 
-askFoo :: (Has Foo sig m) => m Int 
+askFoo :: (Has Foo sig m) => m Int
 askFoo = send AskFoo
 
 newtype FooC m k = FooC {runFoo :: m k}
   deriving (Applicative, Functor, Monad)
-  
+
 
 instance Algebra sig m => Algebra (Foo :+: sig) (FooC m) where
   alg hdl sig ctx = FooC $ case sig of

@@ -1,12 +1,12 @@
 module Main (main) where
 
-import SIR
-import LinRegr
-import LDA
-import Test.Expected
-import Test.HUnit
-import Sampler
-import System.Exit
+import           LDA
+import           LinRegr
+import           Sampler
+import           SIR
+import           System.Exit
+import           Test.Expected
+import           Test.HUnit
 
 testSimLinRegr :: Test
 testSimLinRegr = TestCase $ do

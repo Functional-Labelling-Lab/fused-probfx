@@ -1,8 +1,8 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeOperators       #-}
 
 {- | State effect.
 -}
@@ -14,7 +14,7 @@ module Effects.State (
   , modify
   , handleState) where
 
-import Prog ( discharge, Member(inj), Prog(..) )
+import           Prog (Member (inj), Prog (..), discharge)
 
 -- | The state effect
 data State s a where
@@ -46,4 +46,4 @@ handleState s m = loop s m where
   loop s (Op u k) = case discharge u of
     Right Get      -> loop s (k s)
     Right (Put s') -> loop s' (k ())
-    Left  u'         -> Op u' (loop s . k)
+    Left  u'       -> Op u' (loop s . k)

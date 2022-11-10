@@ -1,11 +1,11 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE MonoLocalBinds #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE MonoLocalBinds      #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeOperators       #-}
 
 {- | An algebraic effect embedding of probabilistic models.
 -}
@@ -46,21 +46,21 @@ module Control.Model (
   )
   where
 
-import Control.Monad ( ap )
-import Control.Monad.Trans.Class ( MonadTrans(lift) )
-import Control.Effect.Dist (  Dist(Dist) )
-import Control.Effect.Sample (  Sample )
-import Control.Effect.Observe (  Observe )
-import Control.Effect.Lift ( Lift(..) )
-import Control.Effect.ObsReader ( ask,  ObsReader )
-import Env ( varToStr, Env, ObsVar, Observable )
-import PrimDist ( PrimVal, PrimDist(..) )
-import Prog ( call, Member, Prog )
+import           Control.Algebra           (Has, send)
+import           Control.Carrier.Dist      (DistC, runDist)
+import           Control.Carrier.ObsReader (ObsReaderC, runObsReader)
+import           Control.Effect.Dist       (Dist (Dist))
+import           Control.Effect.Lift       (Lift (..))
+import           Control.Effect.Observe    (Observe)
+import           Control.Effect.ObsReader  (ObsReader, ask)
+import           Control.Effect.Sample     (Sample)
+import           Control.Effect.Sum        (type (:+:))
+import           Control.Monad             (ap)
+import           Control.Monad.Trans.Class (MonadTrans (lift))
+import           Env                       (Env, ObsVar, Observable, varToStr)
 import qualified OpenSum
-import Control.Algebra (Has, send)
-import Control.Effect.Sum (type (:+:))
-import Control.Carrier.Dist (runDist, DistC)
-import Control.Carrier.ObsReader (runObsReader, ObsReaderC)
+import           PrimDist                  (PrimDist (..), PrimVal)
+import           Prog                      (Member, Prog, call)
 
 {- | Models are parameterised by:
 

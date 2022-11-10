@@ -1,10 +1,10 @@
 
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE OverloadedLabels    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TypeOperators       #-}
 
 {- | The Gelman and Hill [8-schools case study](https://cran.r-project.org/web/packages/rstan/vignettes/rstan.html),
      which quantifies the effect of coaching programs from 8 different schools on students' SAT-V scores.
@@ -12,12 +12,14 @@
 
 module School where
 
-import Model ( Model, deterministic, normal, normal', halfNormal' )
-import Inference.MH as MH ( mh )
-import Sampler ( Sampler )
-import Control.Monad ( replicateM )
-import Data.Kind (Constraint)
-import Env ( Observables, Observable(get), Assign((:=)), Env(ENil), (<:>) )
+import           Control.Monad (replicateM)
+import           Data.Kind     (Constraint)
+import           Env           (Assign ((:=)), Env (ENil), Observable (get),
+                                Observables, (<:>))
+import           Inference.MH  as MH (mh)
+import           Model         (Model, deterministic, halfNormal', normal,
+                                normal')
+import           Sampler       (Sampler)
 
 -- | School model environment
 type SchEnv = '[

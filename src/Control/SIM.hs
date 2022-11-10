@@ -1,9 +1,9 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE PatternSynonyms     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeOperators       #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 {- | Simulation.
@@ -16,24 +16,26 @@ module Control.Inference.SIM (
   , handleSamp
   , handleObs) where
 
-import Data.Map (Map)
-import Control.Effect.Dist (  Dist )
-import Control.Effect.Sample ( Sample(..) )
-import Control.Effect.Observe ( Observe(..) )
-import Control.Effect.ObsReader ( ObsReader )
-import Control.Effect.State ( State, modify )
-import Control.Carrier.State.Strict ( runState )
-import Env ( Env )
-import Control.Model ( Model, handleCore )
-import OpenSum (OpenSum)
-import PrimDist ( pattern PrimDistPrf, sample )
-import Prog ( Member(prj), Prog(..), discharge )
-import qualified Data.Map as Map
+import           Control.Algebra              (Has)
+import           Control.Carrier.State.Strict (runState)
+import           Control.Effect.Dist          (Dist)
+import           Control.Effect.Observe       (Observe (..))
+import           Control.Effect.ObsReader     (ObsReader)
+import           Control.Effect.Sample        (Sample (..))
+import           Control.Effect.State         (State, modify)
+import           Control.Model                (Model, handleCore)
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
+import           Env                          (Env)
+import           OpenSum                      (OpenSum)
 import qualified OpenSum
-import Sampler ( Sampler )
-import Trace ( FromSTrace(..), STrace, updateSTrace )
-import Unsafe.Coerce (unsafeCoerce)
-import Control.Algebra (Has)
+import           PrimDist                     (pattern PrimDistPrf, sample)
+import           Prog                         (Member (prj), Prog (..),
+                                               discharge)
+import           Sampler                      (Sampler)
+import           Trace                        (FromSTrace (..), STrace,
+                                               updateSTrace)
+import           Unsafe.Coerce                (unsafeCoerce)
 
 -- | Top-level wrapper for simulating from a model
 simulate :: (FromSTrace env, Has (ObsReader env) sig m, Has Dist sig m, Has (State STrace) sig m, Has Observe sig m, Has Sample sig m)

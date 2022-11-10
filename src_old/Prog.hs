@@ -1,12 +1,13 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternSynonyms, ViewPatterns #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE PatternSynonyms        #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE ViewPatterns           #-}
 
 {- | An encoding for algebraic effects, based on the @freer@ monad.
 -}
@@ -21,11 +22,12 @@ module Prog (
   , call
   , discharge) where
 
-import Control.Monad ( (>=>) )
-import Data.Kind (Constraint)
-import FindElem ( Idx(unIdx), FindElem(..) )
-import GHC.TypeLits ( TypeError, ErrorMessage(Text, (:<>:), (:$$:), ShowType) )
-import Unsafe.Coerce ( unsafeCoerce )
+import           Control.Monad ((>=>))
+import           Data.Kind     (Constraint)
+import           FindElem      (FindElem (..), Idx (unIdx))
+import           GHC.TypeLits  (ErrorMessage (ShowType, Text, (:$$:), (:<>:)),
+                                TypeError)
+import           Unsafe.Coerce (unsafeCoerce)
 
 {- | A program that returns a value of type @a@ and can call operations that belong to some effect
      @e@ in signature @es@; this represents a syntax tree whose nodes are operations and leaves are pure values.
@@ -40,17 +42,17 @@ data Prog es a where
     -> Prog es a
 
 instance Functor (Prog es) where
-  fmap f (Val a) = Val (f a)
+  fmap f (Val a)   = Val (f a)
   fmap f (Op fx k) = Op fx (fmap f . k)
 
 instance Applicative (Prog es) where
   pure = Val
-  Val f <*> x = fmap f x
+  Val f <*> x     = fmap f x
   (Op fx k) <*> x = Op fx ((<*> x) . k)
 
 instance Monad (Prog es) where
   return            = Val
-  Val a >>= f      = f a
+  Val a >>= f   = f a
   Op fx k >>= f = Op fx (k >=> f)
 
 -- | An open sum for an effect signature @es@, containing an operation @e x@ where @e@ is in @es@
@@ -83,7 +85,7 @@ type family Members (es :: [* -> *]) (ess :: [* -> *]) = (cs :: Constraint) | cs
 -- | Run a pure computation
 run :: Prog '[] a -> a
 run (Val x) = x
-run _ = error "'run' isn't defined for non-pure computations"
+run _       = error "'run' isn't defined for non-pure computations"
 
 -- | Call an operation of type @e x@ in a computation
 call :: (Member e es) => e x -> Prog es x

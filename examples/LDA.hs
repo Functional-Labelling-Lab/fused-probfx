@@ -1,17 +1,17 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedLabels      #-}
+{-# LANGUAGE PolyKinds             #-}
 {-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE Trustworthy           #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use camelCase" #-}
 
@@ -21,13 +21,14 @@
 
 module LDA where
 
-import Model ( Model, dirichlet, discrete', categorical )
-import Sampler ( Sampler )
-import Control.Monad ( replicateM )
-import Data.Kind (Constraint)
-import Env ( Observables, Observable(get), Assign((:=)), nil, (<:>) )
-import Inference.SIM as SIM ( simulate )
-import Inference.MH as MH ( mh )
+import           Control.Monad (replicateM)
+import           Data.Kind     (Constraint)
+import           Env           (Assign ((:=)), Observable (get), Observables,
+                                nil, (<:>))
+import           Inference.MH  as MH (mh)
+import           Inference.SIM as SIM (simulate)
+import           Model         (Model, categorical, dirichlet, discrete')
+import           Sampler       (Sampler)
 
 {- | An LDA environment.
 

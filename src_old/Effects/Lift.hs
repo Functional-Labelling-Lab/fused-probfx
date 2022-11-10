@@ -1,6 +1,6 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {- | For lifting arbitrary monadic computations into an algebraic effect setting.
@@ -11,8 +11,8 @@ module Effects.Lift (
   , lift
   , handleLift) where
 
-import Prog ( call, Member(prj), Prog(..) )
-import Data.Function (fix)
+import           Data.Function (fix)
+import           Prog          (Member (prj), Prog (..), call)
 
 -- | Lift a monadic computation @m a@ into the effect @Lift m@
 newtype Lift m a = Lift (m a)
@@ -26,5 +26,5 @@ handleLift :: forall m w. Monad m => Prog '[Lift m] w -> m w
 handleLift (Val x) = return x
 handleLift (Op u q) = case prj u of
      Just (Lift m) -> m >>= handleLift . q
-     Nothing -> error "Impossible: Nothing cannot occur"
+     Nothing       -> error "Impossible: Nothing cannot occur"
 

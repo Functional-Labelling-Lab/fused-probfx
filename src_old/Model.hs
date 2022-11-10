@@ -1,11 +1,11 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE MonoLocalBinds #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE MonoLocalBinds      #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeOperators       #-}
 
 {- | An algebraic effect embedding of probabilistic models.
 -}
@@ -46,16 +46,17 @@ module Model (
   )
   where
 
-import Control.Monad ( ap )
-import Control.Monad.Trans.Class ( MonadTrans(lift) )
-import Effects.Dist ( handleDist, Dist(Dist), Observe, Sample )
-import Effects.Lift ( Lift(..) )
-import Effects.ObsReader ( ask, handleRead, ObsReader )
-import Effects.State ( State, modify, handleState )
-import Env ( varToStr, Env, ObsVar, Observable )
-import PrimDist ( PrimVal, PrimDist(..) )
-import Prog ( call, Member, Prog )
+import           Control.Monad             (ap)
+import           Control.Monad.Trans.Class (MonadTrans (lift))
+import           Effects.Dist              (Dist (Dist), Observe, Sample,
+                                            handleDist)
+import           Effects.Lift              (Lift (..))
+import           Effects.ObsReader         (ObsReader, ask, handleRead)
+import           Effects.State             (State, handleState, modify)
+import           Env                       (Env, ObsVar, Observable, varToStr)
 import qualified OpenSum
+import           PrimDist                  (PrimDist (..), PrimVal)
+import           Prog                      (Member, Prog, call)
 
 {- | Models are parameterised by:
 

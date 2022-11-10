@@ -1,7 +1,7 @@
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds        #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE GADTs            #-}
+{-# LANGUAGE TypeOperators    #-}
 
 {- | Likelihood-Weighting inference.
 -}
@@ -11,18 +11,18 @@ module Inference.LW (
   , runLW
   , handleObs) where
 
-import qualified Data.Map as Map
-import Env ( Env )
-import Effects.ObsReader ( ObsReader )
-import Control.Monad ( replicateM )
-import Effects.Dist ( Dist, Observe(..), Sample )
-import Prog ( discharge, Member, Prog(..) )
-import PrimDist ( logProb )
-import Model ( handleCore, Model )
-import Sampler ( Sampler )
-import Effects.State ( modify, handleState, State )
-import Trace ( FromSTrace(..), STrace )
-import Inference.SIM (traceSamples, handleSamp)
+import           Control.Monad     (replicateM)
+import qualified Data.Map          as Map
+import           Effects.Dist      (Dist, Observe (..), Sample)
+import           Effects.ObsReader (ObsReader)
+import           Effects.State     (State, handleState, modify)
+import           Env               (Env)
+import           Inference.SIM     (handleSamp, traceSamples)
+import           Model             (Model, handleCore)
+import           PrimDist          (logProb)
+import           Prog              (Member, Prog (..), discharge)
+import           Sampler           (Sampler)
+import           Trace             (FromSTrace (..), STrace)
 
 -- | Top-level wrapper for Likelihood-Weighting (LW) inference
 lw :: (FromSTrace env, es ~ '[ObsReader env, Dist, State STrace, Observe, Sample])

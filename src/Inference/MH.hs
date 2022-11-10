@@ -1,7 +1,7 @@
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds        #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE GADTs            #-}
+{-# LANGUAGE PatternSynonyms  #-}
 
 {- | Metropolis-Hastings inference.
 -}
@@ -15,31 +15,31 @@ module Inference.MH (
   , lookupSample
   , accept) where
 
-import Control.Monad ( (>=>) )
-import Data.Kind (Type)
-import Data.Map (Map)
-import Data.Maybe ( fromJust )
-import Data.Set (Set, (\\))
-import Effects.Dist ( Addr, Tag, Dist, Observe(..), Sample(..), pattern Obs, pattern Samp)
-import Effects.ObsReader ( ObsReader )
-import Effects.State ( State, modify, handleState )
-import Env ( Env )
-import Inference.SIM (handleObs, traceSamples)
-import Model ( Model, handleCore )
-import OpenSum (OpenSum(..))
-import PrimDist
-    ( ErasedPrimDist(ErasedPrimDist),
-      PrimVal,
-      PrimDist(UniformDist, DiscrUniformDist),
-      pattern PrimDistPrf,
-      sample )
-import Prog ( Member(prj), EffectSum, Prog(..), discharge )
-import qualified Data.Map as Map
-import qualified Data.Set as Set
+import           Control.Monad     ((>=>))
+import           Data.Kind         (Type)
+import           Data.Map          (Map)
+import qualified Data.Map          as Map
+import           Data.Maybe        (fromJust)
+import           Data.Set          (Set, (\\))
+import qualified Data.Set          as Set
+import           Effects.Dist      (Addr, Dist, Observe (..), Sample (..), Tag,
+                                    pattern Obs, pattern Samp)
+import           Effects.ObsReader (ObsReader)
+import           Effects.State     (State, handleState, modify)
+import           Env               (Env)
+import           Inference.SIM     (handleObs, traceSamples)
+import           Model             (Model, handleCore)
+import           OpenSum           (OpenSum (..))
 import qualified OpenSum
-import Sampler ( Sampler, liftS )
-import Trace ( LPTrace, FromSTrace(..), STrace, updateLPTrace )
-import Unsafe.Coerce ( unsafeCoerce )
+import           PrimDist          (ErasedPrimDist (ErasedPrimDist),
+                                    PrimDist (DiscrUniformDist, UniformDist),
+                                    PrimVal, pattern PrimDistPrf, sample)
+import           Prog              (EffectSum, Member (prj), Prog (..),
+                                    discharge)
+import           Sampler           (Sampler, liftS)
+import           Trace             (FromSTrace (..), LPTrace, STrace,
+                                    updateLPTrace)
+import           Unsafe.Coerce     (unsafeCoerce)
 
 -- | Top-level wrapper for Metropolis-Hastings (MH) inference
 mh :: (FromSTrace env, es ~ '[ObsReader env, Dist, State STrace, State LPTrace, Observe, Sample])

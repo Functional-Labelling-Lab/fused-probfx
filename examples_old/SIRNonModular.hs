@@ -1,9 +1,10 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE OverloadedLabels    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators, TypeApplications #-}
-{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TypeOperators       #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant return" #-}
 
@@ -24,15 +25,16 @@
 
 module SIRNonModular where
 
-import Prog ( Member )
-import Effects.Writer ( Writer, tellM, handleWriterM )
-import Model ( Model, beta, binomial', gamma, poisson )
-import Inference.SIM as SIM ( simulate )
-import Inference.MH as MH ( mh )
-import Sampler ( Sampler )
-import Env ( Observables, Observable(get), Assign((:=)), nil, (<:>) )
-import Control.Monad ( (>=>) )
-import HMM ( ObsModel, TransModel, hmmGen )
+import           Control.Monad  ((>=>))
+import           Effects.Writer (Writer, handleWriterM, tellM)
+import           Env            (Assign ((:=)), Observable (get), Observables,
+                                 nil, (<:>))
+import           HMM            (ObsModel, TransModel, hmmGen)
+import           Inference.MH   as MH (mh)
+import           Inference.SIM  as SIM (simulate)
+import           Model          (Model, beta, binomial', gamma, poisson)
+import           Prog           (Member)
+import           Sampler        (Sampler)
 
 {- | SIR model.
 -}
@@ -47,9 +49,9 @@ type SIRenv =
 
 -- | Latent state
 data Popl = Popl {
-    s   :: Int, -- ^ number of people susceptible to infection
-    i   :: Int, -- ^ number of people currently infected
-    r   :: Int  -- ^ number of people recovered from infection
+    s :: Int, -- ^ number of people susceptible to infection
+    i :: Int, -- ^ number of people currently infected
+    r :: Int  -- ^ number of people recovered from infection
 } deriving Show
 
 -- | Transition model parameters

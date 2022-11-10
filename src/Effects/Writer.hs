@@ -1,8 +1,8 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeOperators       #-}
 
 {- | Writer effect.
 -}
@@ -14,8 +14,8 @@ module Effects.Writer (
   , handleWriter
   , handleWriterM) where
 
-import Prog ( discharge, Member(inj), Prog(..) )
-import Model ( Model(..) )
+import           Model (Model (..))
+import           Prog  (Member (inj), Prog (..), discharge)
 
 -- | Writer effect for writing to a strean @w@
 data Writer w a where

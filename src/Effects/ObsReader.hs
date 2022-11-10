@@ -1,10 +1,10 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeOperators       #-}
 
 {- | The effect for reading observable variables from a model environment.
 -}
@@ -14,9 +14,9 @@ module Effects.ObsReader (
   , ask
   , handleRead) where
 
-import Prog ( call, discharge, Member, Prog(..) )
-import Env ( Env, ObsVar, Observable(..) )
-import Data.Maybe (listToMaybe)
+import           Data.Maybe (listToMaybe)
+import           Env        (Env, ObsVar, Observable (..))
+import           Prog       (Member, Prog (..), call, discharge)
 
 -- | The effect for reading observed values from a model environment @env@
 data ObsReader env a where

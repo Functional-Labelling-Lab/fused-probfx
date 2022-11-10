@@ -1,9 +1,9 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE OverloadedLabels    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TypeOperators       #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant return" #-}
 
@@ -12,13 +12,14 @@
 
 module HMM where
 
-import Model ( Model, bernoulli', binomial, uniform )
-import Inference.SIM as SIM ( simulate )
-import Inference.LW as LW ( lw )
-import Sampler ( Sampler )
-import Control.Monad ( (>=>) )
-import Data.Kind (Constraint)
-import Env ( Observables, Observable, Assign((:=)), Env, nil, (<:>) )
+import           Control.Monad ((>=>))
+import           Data.Kind     (Constraint)
+import           Env           (Assign ((:=)), Env, Observable, Observables,
+                                nil, (<:>))
+import           Inference.LW  as LW (lw)
+import           Inference.SIM as SIM (simulate)
+import           Model         (Model, bernoulli', binomial, uniform)
+import           Sampler       (Sampler)
 
 -- | A HMM environment
 type HMMEnv =

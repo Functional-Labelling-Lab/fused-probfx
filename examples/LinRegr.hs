@@ -1,25 +1,26 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedLabels      #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant return" #-}
-{-# LANGUAGE MonoLocalBinds #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE MonoLocalBinds        #-}
+{-# LANGUAGE TypeOperators         #-}
 
 {- | A linear regression model, assuming a linear relationship between x and y co-ordinates.
 -}
 
 module LinRegr where
 
-import Model ( Model, normal, uniform )
-import Inference.SIM as SIM ( simulate )
-import Inference.LW as LW ( lw )
-import Inference.MH as MH ( mh )
-import Sampler ( Sampler )
-import Data.Kind (Constraint)
-import Env ( Observables, Observable(get), Assign((:=)), nil, (<:>) )
+import           Data.Kind     (Constraint)
+import           Env           (Assign ((:=)), Observable (get), Observables,
+                                nil, (<:>))
+import           Inference.LW  as LW (lw)
+import           Inference.MH  as MH (mh)
+import           Inference.SIM as SIM (simulate)
+import           Model         (Model, normal, uniform)
+import           Sampler       (Sampler)
 
 -- | Linear regression environment
 type LinRegrEnv =

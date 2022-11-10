@@ -1,7 +1,7 @@
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE OverloadedLabels    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE TypeApplications    #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant return" #-}
 
@@ -10,13 +10,13 @@
 
 module CoinFlip where
 
-import Prog ( call )
-import Effects.ObsReader ( ObsReader(Ask) )
-import Model ( Model(Model), bernoulli, uniform )
-import PrimDist ( PrimDist(BernoulliDist, UniformDist) )
-import Effects.Dist ( Dist(Dist) )
-import Data.Kind (Constraint)
-import Env ( Observables )
+import           Data.Kind         (Constraint)
+import           Effects.Dist      (Dist (Dist))
+import           Effects.ObsReader (ObsReader (Ask))
+import           Env               (Observables)
+import           Model             (Model (Model), bernoulli, uniform)
+import           PrimDist          (PrimDist (BernoulliDist, UniformDist))
+import           Prog              (call)
 
 {- | A coin-flip model that draws a coin-bias @p@ between 0 and 1 from a uniform
      distribution, and uses this to draw a boolean @y@ representing heads or tails.

@@ -1,9 +1,9 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE PatternSynonyms     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeOperators       #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 {- | Simulation.
@@ -16,20 +16,20 @@ module Inference.SIM (
   , handleSamp
   , handleObs) where
 
-import Data.Map (Map)
-import Effects.Dist ( Observe(..), Sample(..), Dist )
-import Effects.ObsReader ( ObsReader )
-import Effects.State ( State, modify, handleState )
-import Env ( Env )
-import Model ( Model, handleCore )
-import OpenSum (OpenSum)
-import PrimDist ( pattern PrimDistPrf, sample )
-import Prog ( Member(prj), Prog(..), discharge )
-import qualified Data.Map as Map
+import           Data.Map          (Map)
+import qualified Data.Map          as Map
+import           Effects.Dist      (Dist, Observe (..), Sample (..))
+import           Effects.ObsReader (ObsReader)
+import           Effects.State     (State, handleState, modify)
+import           Env               (Env)
+import           Model             (Model, handleCore)
+import           OpenSum           (OpenSum)
 import qualified OpenSum
-import Sampler ( Sampler )
-import Trace ( FromSTrace(..), STrace, updateSTrace )
-import Unsafe.Coerce (unsafeCoerce)
+import           PrimDist          (pattern PrimDistPrf, sample)
+import           Prog              (Member (prj), Prog (..), discharge)
+import           Sampler           (Sampler)
+import           Trace             (FromSTrace (..), STrace, updateSTrace)
+import           Unsafe.Coerce     (unsafeCoerce)
 
 -- | Top-level wrapper for simulating from a model
 simulate :: (FromSTrace env, es ~ '[ObsReader env, Dist,State STrace, Observe, Sample])
@@ -62,7 +62,7 @@ handleObs :: Prog (Observe : es) a -> Prog es  a
 handleObs (Val x) = return x
 handleObs (Op op k) = case discharge op of
   Right (Observe d y α) -> handleObs (k y)
-  Left op' -> Op op' (handleObs . k)
+  Left op'              -> Op op' (handleObs . k)
 
 -- | Handle @Sample@ operations by using the @Sampler@ monad to draw from primitive distributions
 handleSamp :: Prog '[Sample] a -> Sampler a

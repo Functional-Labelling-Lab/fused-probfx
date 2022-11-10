@@ -1,16 +1,16 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE OverloadedLabels       #-}
+{-# LANGUAGE PolyKinds              #-}
+{-# LANGUAGE RankNTypes             #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TemplateHaskell        #-}
+{-# LANGUAGE TypeApplications       #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeOperators          #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant return" #-}
 
@@ -29,19 +29,21 @@
 
 module SIR where
 
-import Data.Extensible ( mkField, Record, Lookup, type (>:), (@=), (<:), emptyRecord, Assoc ((:>)) )
-import Prog ( Member )
-import Control.Lens ( (&), (^.), (.~) )
-import Effects.Writer ( Writer, tellM, handleWriterM )
-import Model ( Model, beta, binomial', gamma, poisson )
-import Control.Monad ( (>=>) )
-import Env ( Observables, Observable, Assign ((:=)), (<:>), nil, get)
-import HMM ( ObsModel, TransModel, hmmGen )
-import GHC.TypeLits ( Symbol )
-import Data.Kind (Constraint)
-import Sampler ( Sampler )
-import Inference.SIM as SIM ( simulate )
-import Inference.MH as MH ( mh )
+import           Control.Lens    ((&), (.~), (^.))
+import           Control.Monad   ((>=>))
+import           Data.Extensible (Assoc ((:>)), Lookup, Record, emptyRecord,
+                                  mkField, type (>:), (<:), (@=))
+import           Data.Kind       (Constraint)
+import           Effects.Writer  (Writer, handleWriterM, tellM)
+import           Env             (Assign ((:=)), Observable, Observables, get,
+                                  nil, (<:>))
+import           GHC.TypeLits    (Symbol)
+import           HMM             (ObsModel, TransModel, hmmGen)
+import           Inference.MH    as MH (mh)
+import           Inference.SIM   as SIM (simulate)
+import           Model           (Model, beta, binomial', gamma, poisson)
+import           Prog            (Member)
+import           Sampler         (Sampler)
 
 -- | A type family for conveniently specifying multiple @Record@ fields of the same type
 type family Lookups env (ks :: [Symbol]) a :: Constraint where
