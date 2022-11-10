@@ -28,7 +28,7 @@ newtype SampleC (k :: *) = SampleC { runSampleC :: Sampler k }
 
 instance Algebra Sample SampleC where
   alg hdl (Sample primDist addr) ctx = SampleC $ do
-    x <- sample primDist
+    x <- sample primDist 
     pure $ x <$ ctx
 
 

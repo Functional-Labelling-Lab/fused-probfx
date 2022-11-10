@@ -7,33 +7,39 @@
 {-# LANGUAGE PatternSynonyms #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 
 module Control.Carrier.SampleTracer where
-import Control.Carrier.State.Strict (StateC)
+import Control.Carrier.State.Lazy ( StateC, modify )
 import Trace (STrace, updateSTrace)
-import Control.Algebra (Algebra (..))
+import Control.Algebra ( Algebra(..), Has, send, Handler )
 import Control.Effect.Labelled ((:+:)(..))
-import Control.Effect.Sample (Sample (..))
-import Control.Algebra (Has)
-import Control.Carrier.Sample (SampleC(runSampleC))
-import Control.Effect.State (modify)
+import Control.Effect.Sample ( Sample(..), sample )
 import PrimDist (pattern PrimDistPrf)
-import Control.Algebra (send)
+import Control.Effect.State (State)
 
 newtype SampleTracerC (m :: * -> *) (k :: *) = SampleTracerC { runSampleTracerC :: StateC STrace m k }
   deriving (Functor, Applicative, Monad)
 
-instance (Algebra sig m, Has Sample sig m) => Algebra (Sample :+: sig) (SampleTracerC m) where
+instance (Has Sample (Sample :+: sig) m) => Algebra (Sample :+: sig) (SampleTracerC m) where
+    alg :: (Has Sample (Sample :+: sig) m, Functor ctx) 
+      => Handler ctx n (SampleTracerC m)
+      -> (Sample :+: sig) n a 
+      -> ctx () 
+      -> SampleTracerC m (ctx a)
     alg hdl sig ctx = SampleTracerC $ case sig of
-        L s@(Sample (PrimDistPrf primDist) addr) -> do
-          -- Perform the sample
-          x <- undefined
-          
-          -- Update the trace
-          modify (updateSTrace addr primDist x)
+      L s@(Sample (PrimDistPrf primDist) addr) -> do
+        -- Perform the sample
+        x <- sample primDist addr
 
-          -- Return the value
-          pure $ x <$ ctx
-    
-        R other -> alg (runSampleTracerC . hdl) (R other) ctx
+        -- Update the trace
+        modify (updateSTrace addr primDist x)
+
+        -- Return the value
+        pure $ x <$ ctx
+
+      R other -> alg (runSampleTracerC . hdl) (R (R other)) ctx

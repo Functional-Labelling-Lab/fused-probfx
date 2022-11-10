@@ -23,11 +23,13 @@ import Control.Algebra
 import Data.Kind (Type)
 import Control.Effect.ObsReader (ObsReader(..))
 import qualified Control.Effect.State as State
-import Control.Carrier.State.Strict (StateC, runState, evalState)
+import Control.Carrier.State.Lazy (StateC, runState, evalState)
 import Env (Env, ObsVar, Observable(..), Assign)
 import Data.Maybe (listToMaybe)
+import GHC.Base (Symbol)
+import Control.Effect.State (State)
 
-newtype ObsReaderC env m k = ObsReaderC { runObsReaderC :: StateC (Env env) m k }
+newtype ObsReaderC (env :: [Assign Symbol *]) m k = ObsReaderC { runObsReaderC :: StateC (Env env) m k }
     deriving (Functor, Applicative, Monad)
 
 runObsReader :: Functor m => Env env -> ObsReaderC env m a -> m a
