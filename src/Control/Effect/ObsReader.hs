@@ -1,9 +1,9 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeApplications    #-}
 
 {- | The effect for reading observable variables from a model environment.
 -}
@@ -13,11 +13,11 @@ module Control.Effect.ObsReader (
     ask
   ) where
 
-import Control.Algebra
-import Env ( Env, ObsVar, Observable(..), Assign )
-import Data.Maybe (listToMaybe)
-import Data.Kind (Type)
-import GHC.Types (Symbol)
+import           Control.Algebra
+import           Data.Kind       (Type)
+import           Data.Maybe      (listToMaybe)
+import           Env             (Assign, Env, ObsVar, Observable (..))
+import           GHC.Types       (Symbol)
 
 -- | The effect for reading observed values from a model environment @env@
 data ObsReader (env :: [Assign Symbol Type]) (m :: Type -> Type) (k :: Type) where

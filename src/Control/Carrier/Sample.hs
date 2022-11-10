@@ -1,17 +1,16 @@
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE ExplicitNamespaces #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ExplicitNamespaces         #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 module Control.Carrier.Sample where
-import Control.Algebra (type (:+:), Algebra (alg))
-import Control.Effect.Sample (Sample (..))
-import Control.Effect.Labelled ((:+:)(..))
-import Sampler (Sampler)
-import PrimDist (sample)
+import           Control.Algebra         (Algebra (alg), type (:+:))
+import           Control.Effect.Labelled ((:+:) (..))
+import           Control.Effect.Sample   (Sample (..))
+import           PrimDist                (sample)
+import           Sampler                 (Sampler)
 
 
 -- special carrier: doesn't have an m because it must be the last
@@ -28,7 +27,7 @@ newtype SampleC (k :: *) = SampleC { runSampleC :: Sampler k }
 
 instance Algebra Sample SampleC where
   alg hdl (Sample primDist addr) ctx = SampleC $ do
-    x <- sample primDist 
+    x <- sample primDist
     pure $ x <$ ctx
 
 

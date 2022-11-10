@@ -1,35 +1,31 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE ImpredicativeTypes         #-}
+{-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 module Control.Carrier.Dist (
     DistC(..),
     runDist
 ) where
 
-import Control.Algebra
-    ( Has, Algebra(..), type (:+:)(..), Handler, send )
-import Control.Effect.Dist (Dist(..))
-import Control.Effect.Sample (Sample(..))
-import Control.Effect.Observe (Observe)
-import Data.Kind (Type)
-import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
-import Effects.Dist (Tag)
-import Control.Effect.Observe (Observe(..))
-import qualified Control.Effect.State as State
-import Control.Carrier.State.Strict (StateC, runState, evalState)
-import Control.Algebra (run)
-import Data.Functor.Identity (Identity)
+import           Control.Algebra              (Algebra (..), Handler, Has, run,
+                                               send, type (:+:) (..))
+import           Control.Carrier.State.Strict (StateC, evalState, runState)
+import           Control.Effect.Dist          (Dist (..))
+import           Control.Effect.Observe       (Observe, observe)
+import           Control.Effect.Sample        (Sample, sample)
+import qualified Control.Effect.State         as State
+import           Data.Functor.Identity        (Identity)
+import           Data.Kind                    (Type)
+import qualified Data.Map                     as Map
+import           Data.Maybe                   (fromMaybe)
+import           Effects.Dist                 (Tag)
 
 newtype DistC m k = DistC { runDistC :: StateC (Int, Map.Map Tag Int) m k }
     deriving (Functor, Applicative, Monad)
@@ -41,7 +37,7 @@ instance (Algebra sig m, Has Sample sig m, Has Observe sig m) => Algebra (Dist :
   alg hdl sig ctx = DistC $ case sig of
     L (Dist primDist mObs mTag) -> do
       -- Get current counter and tagMap
-      (counter, tagMap) <- State.get @(Int, Map.Map Tag Int) 
+      (counter, tagMap) <- State.get @(Int, Map.Map Tag Int)
 
       -- Calculate tag and tagIdx to pass to the sample/observe
       let tag = fromMaybe (show counter) mTag
@@ -54,9 +50,9 @@ instance (Algebra sig m, Has Sample sig m, Has Observe sig m) => Algebra (Dist :
 
       x <- case mObs of
         -- Variable to observe from set, replace this dist with an observe call
-        Just obs -> send $ Observe primDist obs (tag, tagIdx)
-        -- No value to observe supplied, replace dist with 
-        Nothing -> send $ Sample primDist (tag, tagIdx)
+        Just obs -> observe primDist obs (tag, tagIdx)
+        -- No value to observe supplied, replace dist with
+        Nothing  -> sample primDist (tag, tagIdx)
 
       pure $ x <$ ctx
 

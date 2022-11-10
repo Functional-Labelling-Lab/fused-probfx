@@ -1,10 +1,9 @@
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds        #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE GADTs            #-}
+{-# LANGUAGE KindSignatures   #-}
+{-# LANGUAGE PatternSynonyms  #-}
+{-# LANGUAGE TypeOperators    #-}
 
 {- | The effect for primitive distributions.
 -}
@@ -14,8 +13,9 @@ module Control.Effect.Dist (
     Dist(..)
   ) where
 
-import PrimDist (PrimDist, Tag, Addr)
-import Data.Kind (Type)
+import           Control.Algebra (Has, send)
+import           Data.Kind       (Type)
+import           PrimDist        (Addr, PrimDist, Tag)
 
 -- | The effect @Dist@ for primitive distributions
 data Dist (m :: Type -> Type) (k :: Type) where
@@ -23,3 +23,6 @@ data Dist (m :: Type -> Type) (k :: Type) where
          -> Maybe k    -- ^ optional observed value
          -> Maybe Tag  -- ^ optional observable variable name
          -> Dist m k
+
+dist :: (Has Dist sig m) => PrimDist k -> Maybe k -> Maybe Tag -> m k
+dist primDist obs tag = send $ Dist primDist obs tag

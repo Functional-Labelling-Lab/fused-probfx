@@ -1,35 +1,33 @@
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE PatternSynonyms #-}
-
+{-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE PatternSynonyms            #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE UndecidableInstances       #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE InstanceSigs               #-}
+{-# LANGUAGE RankNTypes                 #-}
 
 
 module Control.Carrier.SampleTracer where
-import Control.Carrier.State.Lazy ( StateC, modify )
-import Trace (STrace, updateSTrace)
-import Control.Algebra ( Algebra(..), Has, send, Handler )
-import Control.Effect.Labelled ((:+:)(..))
-import Control.Effect.Sample ( Sample(..), sample )
-import PrimDist (pattern PrimDistPrf)
-import Control.Effect.State (State)
+import           Control.Algebra            (Algebra (..), Handler, Has, send)
+import           Control.Carrier.State.Lazy (StateC, modify)
+import           Control.Effect.Labelled    ((:+:) (..))
+import           Control.Effect.Sample      (Sample (..), sample)
+import           Control.Effect.State       (State)
+import           PrimDist                   (pattern PrimDistPrf)
+import           Trace                      (STrace, updateSTrace)
 
 newtype SampleTracerC (m :: * -> *) (k :: *) = SampleTracerC { runSampleTracerC :: StateC STrace m k }
   deriving (Functor, Applicative, Monad)
 
 instance (Has Sample (Sample :+: sig) m) => Algebra (Sample :+: sig) (SampleTracerC m) where
-    alg :: (Has Sample (Sample :+: sig) m, Functor ctx) 
+    alg :: (Has Sample (Sample :+: sig) m, Functor ctx)
       => Handler ctx n (SampleTracerC m)
-      -> (Sample :+: sig) n a 
-      -> ctx () 
+      -> (Sample :+: sig) n a
+      -> ctx ()
       -> SampleTracerC m (ctx a)
     alg hdl sig ctx = SampleTracerC $ case sig of
       L s@(Sample (PrimDistPrf primDist) addr) -> do

@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs          #-}
 {-# LANGUAGE KindSignatures #-}
 
 {- | The effect for observing.
@@ -6,11 +6,13 @@
 
 module Control.Effect.Observe (
   -- ** Observe effect
-  Observe(..)
+    Observe(..)
+  , observe
   ) where
 
-import PrimDist (PrimDist, Tag, Addr)
-import Data.Kind (Type)
+import           Control.Algebra (Has, send)
+import           Data.Kind       (Type)
+import           PrimDist        (Addr, PrimDist, Tag)
 
 -- | The effect @Observe@ for conditioning against observed values
 data Observe (m :: Type -> Type) (k :: Type) where
@@ -18,3 +20,6 @@ data Observe (m :: Type -> Type) (k :: Type) where
             -> k             -- ^ observed value
             -> Addr          -- ^ address of @Observe@ operation
             -> Observe m k
+
+observe :: (Has Observe sig m) => PrimDist k -> k -> Addr -> m k
+observe primDist obs addr = send $ Observe primDist obs addr
