@@ -6,6 +6,8 @@
 {-# LANGUAGE TypeOperators       #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant return" #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 {- | A [case study](https://docs.pymc.io/en/v3/pymc-examples/examples/case_studies/multilevel_modeling.html)
     by Gelman and Hill as a hierarchical linear regression model, modelling the relationship between radon levels
@@ -23,6 +25,7 @@ import           Inference.MH  as MH (mh)
 import           Inference.SIM as SIM (simulate)
 import           Model         (Model, halfCauchy', halfNormal, normal)
 import           Sampler       (Sampler, liftS)
+import Control.Algebra (Has)
 
 -- | Return all the positions that a value occurs within a list
 findIndexes :: Eq a => a -> [a] -> [Int]
@@ -40,18 +43,18 @@ type RadonEnv =
    ]
 
 -- | Prior distribution over model hyperparameters
-radonPrior :: Observables env '["mu_a", "mu_b", "sigma_a", "sigma_b"] Double
-  => Model env es (Double, Double, Double, Double)
+radonPrior :: forall env sig m. (Observables env '["mu_a", "mu_b", "sigma_a", "sigma_b"] Double, Has (Model env) sig m)
+  => m (Double, Double, Double, Double)
 radonPrior = do
-  mu_a    <- normal 0 10 #mu_a
-  sigma_a <- halfNormal 5 #sigma_a
-  mu_b    <- normal 0 10 #mu_b
-  sigma_b <- halfNormal 5 #sigma_b
+  mu_a    <- normal @env 0 10 #mu_a
+  sigma_a <- halfNormal @env 5 #sigma_a
+  mu_b    <- normal @env 0 10 #mu_b
+  sigma_b <- halfNormal @env 5 #sigma_b
   return (mu_a, sigma_a, mu_b, sigma_b)
 
 -- | The Radon model
 -- | We have predefined parameters: n counties = 85, len(floor_x) = 919, len(county_idx) = 919
-radonModel :: Observables env '["mu_a", "mu_b", "sigma_a", "sigma_b", "a", "b", "log_radon"] Double
+radonModel :: forall env sig m. (Observables env '["mu_a", "mu_b", "sigma_a", "sigma_b", "a", "b", "log_radon"] Double, Has (Model env) sig m)
   -- | number of counties
   => Int
   -- | whether each house has a basement (1) or not (0)
@@ -59,15 +62,15 @@ radonModel :: Observables env '["mu_a", "mu_b", "sigma_a", "sigma_b", "a", "b", 
   -- | the county (as an integer) each house belongs to
   -> [Int]
   -- | radon levels for houses
-  -> Model env es [Double]
+  -> m [Double]
 radonModel n_counties floor_x county_idx = do
-  (mu_a, sigma_a, mu_b, sigma_b) <- radonPrior
+  (mu_a, sigma_a, mu_b, sigma_b) <- radonPrior @env
   -- Intercept for each county
-  a <- replicateM n_counties (normal mu_a sigma_a #a)  -- length = 85
+  a <- replicateM n_counties (normal @env mu_a sigma_a #a)  -- length = 85
   -- Gradient for each county
-  b <- replicateM n_counties (normal mu_b sigma_b #b)  -- length = 85
+  b <- replicateM n_counties (normal @env mu_b sigma_b #b)  -- length = 85
   -- Model error
-  eps <- halfCauchy' 5
+  eps <- halfCauchy' @env 5
   let -- Get county intercept for each datapoint
       a_county_idx = map (a !!) county_idx
       -- Get county gradient for each datapoint
@@ -76,7 +79,7 @@ radonModel n_counties floor_x county_idx = do
       -- Get radon estimate for each data point
       radon_est = zipWith (+) a_county_idx (zipWith (*) b_county_idx floor_values)
   -- Sample radon amount for each data point
-  radon_like <- mapM (\rad_est -> normal rad_est eps #log_radon) radon_est
+  radon_like <- mapM (\rad_est -> normal @env rad_est eps #log_radon) radon_est
   return radon_like
 
 mkRecordHLR :: ([Double], [Double], [Double], [Double], [Double], [Double], [Double]) -> Env RadonEnv
@@ -89,7 +92,7 @@ simRadon = do
   -- Specify model environment
   let env_in = mkRecordHLR ([1.45], [-0.68], [0.3], [0.2], [], [], [])
   -- Simulate model
-  (bs, env_out) <- SIM.simulate (radonModel n_counties dataFloorValues countyIdx) env_in
+  (bs, env_out) <- SIM.simulate env_in (radonModel @RadonEnv n_counties dataFloorValues countyIdx)
   -- Retrieve and return the radon-levels for houses with basements and those without basements
   let basementIdxs      = findIndexes 0 dataFloorValues
       noBasementIdxs    = findIndexes 1 dataFloorValues
@@ -103,7 +106,7 @@ mhRadonpost = do
   -- Specify model environment
   let env_in = mkRecordHLR ([], [], [], [], [], [], logRadon)
   -- Run MH inference for 2000 iterations
-  env_outs <- MH.mh 2000 (radonModel n_counties dataFloorValues countyIdx) env_in ["mu_a", "mu_b", "sigma_a", "sigma_b"]
+  env_outs <- MH.mh 2000 (radonModel @RadonEnv n_counties dataFloorValues countyIdx) env_in ["mu_a", "mu_b", "sigma_a", "sigma_b"]
   -- Retrieve sampled values for model hyperparameters mu_a and mu_b
   let mu_a   = concatMap (get #mu_a)  env_outs
       mu_b   = concatMap (get #mu_a)  env_outs
@@ -115,7 +118,7 @@ mhRadon = do
   -- Specify model environment
   let env_in = mkRecordHLR ([], [], [], [], [], [], logRadon)
   -- Run MH inference for 1500 iterations
-  env_outs <- MH.mh 1500 (radonModel n_counties dataFloorValues countyIdx) env_in ["mu_a", "mu_b", "sigma_a", "sigma_b"]
+  env_outs <- MH.mh 1500 (radonModel @RadonEnv n_counties dataFloorValues countyIdx) env_in ["mu_a", "mu_b", "sigma_a", "sigma_b"]
   -- Retrieve most recently sampled values for each house's intercept and gradient, a and b
   let env_pred   = head env_outs
       as         = get #a env_pred

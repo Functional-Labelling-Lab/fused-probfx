@@ -11,10 +11,7 @@
 
 module Control.Inference.SIM (
     simulate
-  , runSimulate
-  , traceSamples
-  , handleSamp
-  , handleObs) where
+  , runSimulate) where
 
 import           Control.Algebra              (Has)
 import           Control.Carrier.State.Strict (runState)
@@ -23,7 +20,6 @@ import           Control.Effect.Observe       (Observe (..))
 import           Control.Effect.ObsReader     (ObsReader)
 import           Control.Effect.Sample        (Sample (..))
 import           Control.Effect.State         (State, modify)
-import           Control.Model                (Model, handleCore)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Env                          (Env)
@@ -53,21 +49,3 @@ runSimulate :: (Has (ObsReader env) sig m, Has Dist sig m, Has (State STrace) si
  -> Sampler (a, STrace) -- ^ (model output, sample trace)
 runSimulate model
   = handleSamp . handleObs . handleState Map.empty . traceSamples . handleCore model
-
--- | Trace sampled values for each @Sample@ operation
-traceSamples :: (Has (State STrace) sig m, Has Sample sig m) => m a -> m a
-traceSamples (Val x) = return x
-traceSamples (Op op k) = case prj op of
-  Just (Sample (PrimDistPrf d) α) ->
-       Op op (\x -> do modify (updateSTrace α d x);
-                       traceSamples (k x))
-  Nothing -> Op op (traceSamples . k)
-
--- | Handle @Sample@ operations by using the @Sampler@ monad to draw from primitive distributions
-handleSamp :: Prog '[Sample] a -> Sampler a
-handleSamp  (Val x)  = return x
-handleSamp  (Op op k) = case discharge op of
-  Right (Sample (PrimDistPrf d) α) ->
-    do  x <- sample d
-        handleSamp (k x)
-  _        -> error "Impossible: Nothing cannot occur"

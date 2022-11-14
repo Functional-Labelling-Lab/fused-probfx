@@ -6,6 +6,8 @@
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE TypeApplications #-}
 
 {- | A logistic regression model, modelling the probability of an event occurring or not.
 -}
@@ -20,6 +22,7 @@ import           Inference.MH  as MH (mh)
 import           Inference.SIM as SIM (simulate)
 import           Model         (Model, bernoulli, gamma', normal, normal')
 import           Sampler       (Sampler)
+import Control.Algebra (Has)
 
 {- | Logistic regression environment.
      This type definition is for readability purposes and is not used anywhere.
@@ -33,29 +36,28 @@ type LogRegrEnv =
 -- | Logistic regression model
 logRegr
  -- Specify the "observable variables" that may later be provided observed values
- :: (Observable env "y" Bool, Observables env '["m", "b"] Double)
+ :: forall env sig m. (Observable env "y" Bool, Observables env '["m", "b"] Double, Has (Model env) sig m)
  -- | Model inputs
  => [Double]
  -- | Event occurrences
- -> Model env rs [Bool]
+ -> m [Bool]
 logRegr xs = do
   -- Specify model parameter distributions
   {- Annotating with the observable variable #m lets us later provide observed
      values for m. -}
-  m     <- normal 0 5 #m
-  b     <- normal 0 1 #b
+  m     <- normal @env 0 5 #m
+  b     <- normal @env 0 1 #b
   {- One can use primed variants of distributions which don't require observable
      variables to be provided. This disables being able to later provide
      observed values to that variable. -}
-  sigma <- gamma' 1 1
+  sigma <- gamma' @env 1 1
   -- Specify model output distributions
-  ys    <- foldM (\ys x -> do
-                    -- probability of event occurring
-                    p <- normal' (m * x + b) sigma
-                    -- generate as output whether the event occurs
-                    y <- bernoulli (sigmoid p) #y
-                    return (ys ++ [y])) [] xs
-  return ys
+  foldM (\ys x -> do
+                -- probability of event occurring
+                p <- normal' @env (m * x + b) sigma
+                -- generate as output whether the event occurs
+                y <- bernoulli @env (sigmoid p) #y
+                return (ys ++ [y])) [] xs
 
 sigmoid :: Double -> Double
 sigmoid x = 1 / (1 + exp((-1) * x))
@@ -66,9 +68,10 @@ simulateLogRegr = do
   -- First declare the model inputs
   let xs  = map (/50) [(-50) .. 50]
   -- Define a model environment to simulate from, providing observed values for the model parameters
+      env :: Env LogRegrEnv
       env = (#y := []) <:> (#m := [2]) <:> (#b := [-0.15]) <:> nil
   -- Call simulate on logistic regression
-  (ys, envs) <- SIM.simulate (logRegr xs) env
+  (ys, envs) <- SIM.simulate env $ logRegr @LogRegrEnv xs
   return (zip xs ys)
 
 -- | Likelihood-weighting over logistic regression
@@ -79,7 +82,7 @@ inferLwLogRegr = do
   -- Define environment for inference, providing observed values for the model outputs
   let env = (#y := ys) <:> (#m := []) <:> (#b := []) <:> nil
   -- Run LW inference for 20000 iterations
-  lwTrace :: [(Env LogRegrEnv, Double)] <- LW.lw 20000 (logRegr xs) env
+  lwTrace :: [(Env LogRegrEnv, Double)] <- LW.lw 20000 env $ logRegr @LogRegrEnv xs
   let -- Get output of LW, extract mu samples, and pair with likelihood-weighting ps
       (env_outs, ps) = unzip lwTrace
       mus = concatMap (get #m) env_outs
@@ -95,7 +98,7 @@ inferMHLogRegr = do
   -- Run MH inference for 20000 iterations
   {- The agument ["m", "b"] is optional for indicating interest in learning #m and #b in particular,
      causing other variables to not be resampled (unless necessary) during MH. -}
-  mhTrace :: [Env LogRegrEnv] <- MH.mh 50000 (logRegr xs) env ["m", "b"]
+  mhTrace :: [Env LogRegrEnv] <- MH.mh 50000 (logRegr @LogRegrEnv xs) env ["m", "b"]
   -- Retrieve values sampled for #m and #b during MH
   let m_samples = concatMap (get #m) mhTrace
       b_samples = concatMap (get #b) mhTrace

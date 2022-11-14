@@ -16,8 +16,8 @@ module PrimDist (
   , IsPrimVal(..)
   , pattern PrimDistPrf
   , ErasedPrimDist(..)
-  -- * Sampling
-  , sample
+  -- * Drawing sample
+  , draw
   -- * Density
   , prob
   , logProb
@@ -193,38 +193,38 @@ instance Show ErasedPrimDist where
   show (ErasedPrimDist d) = show d
 
 -- | Draw a value from a primitive distribution in the @Sampler@ monad
-sample ::
+draw ::
      PrimDist a
   -> Sampler a
-sample (HalfCauchyDist σ )
+draw (HalfCauchyDist σ )
   = abs <$> createSampler (sampleCauchy 0 σ)
-sample (CauchyDist μ σ )
+draw (CauchyDist μ σ )
   = createSampler (sampleCauchy μ σ)
-sample (HalfNormalDist σ )
+draw (HalfNormalDist σ )
   = abs <$> createSampler (sampleNormal 0 σ)
-sample (NormalDist μ σ )
+draw (NormalDist μ σ )
   = createSampler (sampleNormal μ σ)
-sample (UniformDist min max )
+draw (UniformDist min max )
   = createSampler (sampleUniform min max)
-sample (DiscrUniformDist min max )
+draw (DiscrUniformDist min max )
   = createSampler (sampleDiscreteUniform min max)
-sample (GammaDist k θ )
+draw (GammaDist k θ )
   = createSampler (sampleGamma k θ)
-sample (BetaDist α β  )
+draw (BetaDist α β  )
   = createSampler (sampleBeta α β)
-sample (BinomialDist n p  )
+draw (BinomialDist n p  )
   = length . filter (== True) <$> createSampler (sampleBinomial n p)
-sample (BernoulliDist p )
+draw (BernoulliDist p )
   = createSampler (sampleBernoulli p)
-sample (CategoricalDist ps )
+draw (CategoricalDist ps )
   =  fst . (ps !!) <$> createSampler (sampleCategorical $ V.fromList $ fmap snd ps)
-sample (DiscreteDist ps )
+draw (DiscreteDist ps )
   = createSampler (sampleDiscrete ps)
-sample (PoissonDist λ )
+draw (PoissonDist λ )
   = createSampler (samplePoisson λ)
-sample (DirichletDist xs )
+draw (DirichletDist xs )
   = createSampler (sampleDirichlet xs)
-sample (DeterministicDist x) = pure x
+draw (DeterministicDist x) = pure x
 
 -- | Compute the density of a primitive distribution generating an observed value
 prob ::

@@ -15,7 +15,7 @@
 -}
 
 module Control.Carrier.ObsReader (
-    ObsReaderC(..),
+    ObsReaderC,
     runObsReader
 ) where
 
@@ -34,7 +34,7 @@ newtype ObsReaderC (env :: [Assign Symbol *]) m k = ObsReaderC { runObsReaderC :
     deriving (Functor, Applicative, Monad)
 
 runObsReader :: Functor m => Env env -> ObsReaderC env m a -> m a
-runObsReader env = evalState env . runObsReaderC
+runObsReader env (ObsReaderC runObsReaderC) = evalState env runObsReaderC
 
 instance (Algebra sig m) => Algebra (ObsReader env :+: sig) (ObsReaderC env m) where
     alg hdl sig ctx = ObsReaderC $ case sig of

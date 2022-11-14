@@ -9,33 +9,32 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
-module Control.Carrier.Dist (
-    DistC(..),
-    runDist
+module Control.Carrier.Draw (
+    DrawC,
+    runDraw
 ) where
 
 import           Control.Algebra              (Algebra (..), Handler, Has, run,
                                                send, type (:+:) (..))
 import           Control.Carrier.State.Strict (StateC, evalState, runState)
-import           Control.Effect.Dist          (Dist (..))
-import           Control.Effect.Observe       (Observe, observe)
-import           Control.Effect.Sample        (Sample, sample)
+import           Control.Effect.Dist          (Dist (..), dist)
+import           Control.Effect.Draw          (Draw (..))
 import qualified Control.Effect.State         as State
 import           Data.Functor.Identity        (Identity)
 import           Data.Kind                    (Type)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (fromMaybe)
-import           Effects.Dist                 (Tag)
+import           PrimDist                     (Tag)
 
-newtype DistC m k = DistC { runDistC :: StateC (Int, Map.Map Tag Int) m k }
+newtype DrawC m k = DrawC { runDrawC :: StateC (Int, Map.Map Tag Int) m k }
     deriving (Functor, Applicative, Monad)
 
-runDist :: Functor m => DistC m a -> m a
-runDist = evalState (0, Map.empty) . runDistC
+runDraw :: Functor m => DrawC m a -> m a
+runDraw = evalState (0, Map.empty) . runDrawC
 
-instance (Algebra sig m, Has Sample sig m, Has Observe sig m) => Algebra (Dist :+: sig) (DistC m) where
-  alg hdl sig ctx = DistC $ case sig of
-    L (Dist primDist mObs mTag) -> do
+instance (Algebra sig m, Has Dist sig m) => Algebra (Draw :+: sig) (DrawC m) where
+  alg hdl sig ctx = DrawC $ case sig of
+    L (Draw primDist mObs mTag) -> do
       -- Get current counter and tagMap
       (counter, tagMap) <- State.get @(Int, Map.Map Tag Int)
 
@@ -48,12 +47,8 @@ instance (Algebra sig m, Has Sample sig m, Has Observe sig m) => Algebra (Dist :
       let tagMap' = Map.insert tag (tagIdx + 1) tagMap
       State.put (counter', tagMap')
 
-      x <- case mObs of
-        -- Variable to observe from set, replace this dist with an observe call
-        Just obs -> observe primDist obs (tag, tagIdx)
-        -- No value to observe supplied, replace dist with
-        Nothing  -> sample primDist (tag, tagIdx)
+      x <- dist primDist mObs (tag, tagIdx)
 
       pure $ x <$ ctx
 
-    R other -> alg (runDistC . hdl) (R other) ctx
+    R other -> alg (runDrawC . hdl) (R other) ctx
