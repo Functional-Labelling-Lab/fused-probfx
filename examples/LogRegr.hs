@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE FlexibleInstances   #-}
@@ -5,24 +6,23 @@
 {-# LANGUAGE OverloadedLabels    #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeOperators       #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE TypeApplications #-}
 
 {- | A logistic regression model, modelling the probability of an event occurring or not.
 -}
 
 module LogRegr where
 
-import           Control.Monad (foldM)
-import           Env           (Assign ((:=)), Env, Observable (get),
-                                Observables, nil, (<:>))
-import           Inference.LW  as LW (lw)
-import           Inference.MH  as MH (mh)
-import           Inference.SIM as SIM (simulate)
-import           Model         (Model, bernoulli, gamma', normal, normal')
-import           Sampler       (Sampler)
-import Control.Algebra (Has)
+import           Control.Algebra (Has)
+import           Control.Monad   (foldM)
+import           Env             (Assign ((:=)), Env, Observable (get),
+                                  Observables, nil, (<:>))
+import           Inference.LW    as LW (lw)
+import           Inference.MH    as MH (mh)
+import           Inference.SIM   as SIM (simulate)
+import           Model           (Model, bernoulli, gamma', normal, normal')
+import           Sampler         (Sampler)
 
 {- | Logistic regression environment.
      This type definition is for readability purposes and is not used anywhere.

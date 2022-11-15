@@ -14,7 +14,7 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use camelCase" #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeApplications      #-}
 
 {- | A [Latent Dirichlet Allocation (LDA)](https://en.wikipedia.org/wiki/Latent_Dirichlet_allocation) model
      (or topic model) for learning the distribution over words and topics in a text document.
@@ -22,15 +22,15 @@
 
 module LDA where
 
-import           Control.Monad (replicateM)
-import           Data.Kind     (Constraint)
-import           Env           (Assign ((:=)), Observable (get), Observables,
-                                nil, (<:>), Env)
-import           Inference.MH  as MH (mh)
-import           Inference.SIM as SIM (simulate)
-import           Model         (Model, categorical, dirichlet, discrete')
-import           Sampler       (Sampler)
-import Control.Algebra (Has)
+import           Control.Algebra (Has)
+import           Control.Monad   (replicateM)
+import           Data.Kind       (Constraint)
+import           Env             (Assign ((:=)), Env, Observable (get),
+                                  Observables, nil, (<:>))
+import           Inference.MH    as MH (mh)
+import           Inference.SIM   as SIM (simulate)
+import           Model           (Model, categorical, dirichlet, discrete')
+import           Sampler         (Sampler)
 
 {- | An LDA environment.
 
@@ -147,7 +147,7 @@ mhLDA  = do
       env_mh_in = #θ := [] <:>  #φ := [] <:> #w := topic_data <:> nil
   -- Run MH for 500 iterations
   env_mh_outs <- MH.mh 500 (topicModel @TopicEnv vocab n_topics n_words) env_mh_in ["φ", "θ"]
-  -- Draw the most recent sampled parameters from the MH trace
+  -- Dist the most recent sampled parameters from the MH trace
   let env_pred   = head env_mh_outs
       θs         = get #θ env_pred
       φs         = get #φ env_pred

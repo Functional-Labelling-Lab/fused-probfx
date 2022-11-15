@@ -26,18 +26,20 @@
 
 module SIRNonModular where
 
-import           Control.Monad  ((>=>))
-import           Env            (Assign ((:=)), Observable (get), Observables,
-                                 nil, (<:>), Env)
-import           HMM            (ObsModel, TransModel, hmmGen)
-import           Inference.MH   as MH (mh)
-import           Inference.SIM  as SIM (simulate)
-import           Model          (Model, beta, binomial', gamma, poisson)
-import           Sampler        (Sampler)
-import Control.Algebra (Has)
-import Control.Effect.Writer (Writer)
-import Control.Effect.Sum ((:+:))
-import Control.Carrier.Writer.Strict (tell, runWriter)
+import           Control.Algebra               (Has)
+import           Control.Carrier.Writer.Strict (runWriter, tell)
+import           Control.Effect.Sum            ((:+:))
+import           Control.Effect.Writer         (Writer)
+import           Control.Monad                 ((>=>))
+import           Env                           (Assign ((:=)), Env,
+                                                Observable (get), Observables,
+                                                nil, (<:>))
+import           HMM                           (ObsModel, TransModel, hmmGen)
+import           Inference.MH                  as MH (mh)
+import           Inference.SIM                 as SIM (simulate)
+import           Model                         (Model, beta, binomial', gamma,
+                                                poisson)
+import           Sampler                       (Sampler)
 
 {- | SIR model.
 -}

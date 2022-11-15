@@ -30,12 +30,12 @@ tested-with:
 library
   exposed-modules:
                       Control.Carrier.ObsReader,
-                      Control.Carrier.Draw,
+                      Control.Carrier.Dist,
                       Control.Carrier.LPTracer,
-                      Control.Carrier.SampleTracer,
+                      Control.Carrier.SampTracer,
                       Control.Effect.ObsReader,
+                      Control.Effect.SampObs,
                       Control.Effect.Dist,
-                      Control.Effect.Draw,
                       Inference.LW,
                       Inference.MH,
                       Inference.SIM,

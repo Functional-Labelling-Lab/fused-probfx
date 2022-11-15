@@ -11,16 +11,14 @@
 
 module CoinFlip where
 
-import Control.Algebra (Has, send)
-import           Data.Kind         (Constraint)
--- import           Effects.Dist      (Dist (Dist))
--- import           Effects.ObsReader (ObsReader (Ask))
-import           Env               (Observables)
-import           Model             (Model, bernoulli, uniform)
-import           PrimDist          (PrimDist (BernoulliDist, UniformDist))
-import Control.Effect.ObsReader (ObsReader(Ask))
-import Control.Effect.Draw (Draw(Draw))
--- import           Prog              (call)
+import           Control.Algebra          (Has, send)
+import           Control.Effect.Dist      (Dist (Dist))
+import           Control.Effect.ObsReader (ObsReader (Ask))
+import           Data.Kind                (Constraint)
+import           Env                      (Observables)
+import           Model                    (Model, bernoulli, uniform)
+import           PrimDist                 (PrimDist (BernoulliDist, UniformDist))
+
 
 {- | A coin-flip model that draws a coin-bias @p@ between 0 and 1 from a uniform
      distribution, and uses this to draw a boolean @y@ representing heads or tails.
@@ -43,7 +41,7 @@ coinFlip'
   => m Bool
 coinFlip' = do
   maybe_p  <- send (Ask @env #p)
-  p        <- send (Draw (UniformDist 0 1) maybe_p (Just "p"))
+  p        <- send (Dist (UniformDist 0 1) maybe_p (Just "p"))
   maybe_y  <- send (Ask @env #y)
-  y        <- send (Draw (BernoulliDist p) maybe_y (Just "p") )
+  y        <- send (Dist (BernoulliDist p) maybe_y (Just "p") )
   return y

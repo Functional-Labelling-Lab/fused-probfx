@@ -7,9 +7,9 @@
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 {- | Metropolis-Hastings inference.
 -}
@@ -21,55 +21,54 @@ module Inference.MH (
   , lookupSample
   , accept) where
 
-import           Control.Algebra              (Algebra (alg))
-import           Control.Carrier.Draw         (DrawC, runDraw)
-import           Control.Carrier.Lift         (Lift, LiftC, runM, sendM)
-import           Control.Carrier.LPTracer     (LPTracerC, runLPTracer)
-import           Control.Carrier.ObsReader    (ObsReaderC, runObsReader)
-import           Control.Carrier.Reader       (ReaderC, ask, runReader)
-import           Control.Carrier.SampleTracer (SampleTracerC, runSampleTracer)
-import           Control.Effect.Dist          (Dist (..))
-import           Control.Monad                ((>=>))
-import           Control.Monad.Trans          (MonadTrans (lift))
-import           Data.Kind                    (Type)
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
-import           Data.Maybe                   (fromJust)
-import           Data.Set                     (Set, (\\))
-import qualified Data.Set                     as Set
-import           Env                          (Env)
-import           OpenSum                      (OpenSum (..))
+import           Control.Algebra            (Algebra (alg), Has)
+import           Control.Carrier.Dist       (DistC, runDist)
+import           Control.Carrier.Lift       (Lift, LiftC, runM, sendM)
+import           Control.Carrier.LPTracer   (LPTracerC, runLPTracer)
+import           Control.Carrier.ObsReader  (ObsReaderC, runObsReader)
+import           Control.Carrier.Reader     (ReaderC, ask, runReader)
+import           Control.Carrier.SampTracer (SampTracerC, runSampTracer)
+import           Control.Effect.SampObs     (SampObs (..))
+import           Control.Effect.Sum         ((:+:) (L, R))
+import           Control.Monad              ((>=>))
+import           Control.Monad.Trans        (MonadTrans (lift))
+import           Data.Kind                  (Type)
+import           Data.Map                   (Map)
+import qualified Data.Map                   as Map
+import           Data.Maybe                 (fromJust)
+import           Data.Set                   (Set, (\\))
+import qualified Data.Set                   as Set
+import           Env                        (Env)
+import           OpenSum                    (OpenSum (..))
 import qualified OpenSum
-import           PrimDist                     (Addr,
-                                               ErasedPrimDist (ErasedPrimDist),
-                                               PrimDist (DiscrUniformDist, UniformDist),
-                                               PrimVal, Tag, draw,
-                                               pattern PrimDistPrf)
-import           Sampler                      (Sampler, liftS)
-import           Trace                        (FromSTrace (..), LPTrace, STrace,
-                                               updateLPTrace)
-import           Unsafe.Coerce                (unsafeCoerce)
-import Control.Effect.Sum ((:+:)(L, R))
-import Control.Algebra (Has)
+import           PrimDist                   (Addr,
+                                             ErasedPrimDist (ErasedPrimDist),
+                                             PrimDist (DiscrUniformDist, UniformDist),
+                                             PrimVal, Tag, dist,
+                                             pattern PrimDistPrf)
+import           Sampler                    (Sampler, liftS)
+import           Trace                      (FromSTrace (..), LPTrace, STrace,
+                                             updateLPTrace)
+import           Unsafe.Coerce              (unsafeCoerce)
 
--- Dist Effect Carrier
-newtype DistC (m :: * -> *) (k :: *) = DistC { runDist :: ReaderC (STrace, Addr) m k }
+-- SampObs Effect Carrier
+newtype SampObsC (m :: * -> *) (k :: *) = SampObsC { runSampObs :: ReaderC (STrace, Addr) m k }
     deriving (Functor, Applicative, Monad)
 
-instance (Has (Lift Sampler) sig m) => Algebra (Dist :+: sig) (DistC m) where
-  alg hdl sig ctx = DistC $ case sig of
-    L (Dist (PrimDistPrf d) obs addr) -> case obs of
+instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsC m) where
+  alg hdl sig ctx = SampObsC $ case sig of
+    L (SampObs (PrimDistPrf d) obs addr) -> case obs of
       Just y  -> pure $ y <$ ctx
       Nothing -> do
         (strace, α_samp) <- ask @(STrace, Addr)
         x <- sendM $ lookupSample strace d addr α_samp
         pure $ x <$ ctx
-    R other -> alg (runDist . hdl) (R other) ctx
+    R other -> alg (runSampObs . hdl) (R other) ctx
 
 -- | Top-level wrapper for Metropolis-Hastings (MH) inference
 mh :: (FromSTrace env)
   => Int            -- ^ number of MH iterations
-  -> ObsReaderC env (DrawC (SampleTracerC (LPTracerC (DistC (LiftC Sampler))))) a -- ^ model awaiting an input
+  -> ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler))))) a -- ^ model awaiting an input
   -> Env env        -- ^ (model input, input model environment)
   -> [Tag] -- ^ optional list of observable variable names (strings) to specify sample sites of interest
            {- For example, provide "mu" to specify interest in sampling #mu. This causes other variables to not be resampled unless necessary. -}
@@ -84,7 +83,7 @@ mh n model env_0 tags = do
 
 -- | Perform one step of MH
 mhStep ::
-     ObsReaderC env (DrawC (SampleTracerC (LPTracerC (DistC (LiftC Sampler))))) a -- ^ model
+     ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
   -> Env env                  -- ^ model environment
   -> [Tag]                    -- ^ tags indicating sample sites of interest
   -> [((a, STrace), LPTrace)] -- ^ trace of previous MH outputs
@@ -95,27 +94,27 @@ mhStep model env tags trace = do
   -- Get possible addresses to propose new samples for
       sampleSites = if null tags then samples
                     else  Map.filterWithKey (\(tag, i) _ -> tag `elem` tags) samples
-  -- Draw a proposal sample address
-  α_samp_ind <- draw $ DiscrUniformDist 0 (Map.size sampleSites - 1)
+  -- Dist a proposal sample address
+  α_samp_ind <- dist $ DiscrUniformDist 0 (Map.size sampleSites - 1)
   let (α_samp, _) = Map.elemAt α_samp_ind sampleSites
   -- Run MH with proposal sample address
   ((x', samples'), logps') <- runMH model env samples α_samp
   -- Compute acceptance ratio
   acceptance_ratio <- liftS $ accept α_samp samples samples' logps logps'
-  u <- draw (UniformDist 0 1)
+  u <- dist (UniformDist 0 1)
   if u < acceptance_ratio
     then do return (((x', samples'), logps'):trace)
     else do return trace
 
 -- | Handler for one iteration of MH
 runMH ::
-     ObsReaderC env (DrawC (SampleTracerC (LPTracerC (DistC (LiftC Sampler))))) a -- ^ model
+     ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
   -> Env env        -- ^ model environment
   -> STrace         -- ^ sample trace of previous MH iteration
   -> Addr           -- ^ sample address of interest
   -> Sampler ((a, STrace), LPTrace) -- ^ (model output, sample trace, log-probability trace)
 runMH model env strace α_samp =
-     runM $ runReader (strace, α_samp) $ runDist $ runLPTracer True $ runSampleTracer $ runDraw $ runObsReader env model
+     runM $ runReader (strace, α_samp) $ runSampObs $ runLPTracer True $ runSampTracer $ runDist $ runObsReader env model
 
 -- | Handler for @Sample@ that selectively reuses old samples or draws new ones
 -- handleSamp ::
@@ -140,14 +139,14 @@ lookupSample :: OpenSum.Member a PrimVal
   -> Addr       -- ^ address of proposal sample site
   -> Sampler a
 lookupSample samples d α α_samp
-  | α == α_samp = draw d
+  | α == α_samp = dist d
   | otherwise   =
       case Map.lookup α samples of
         Just (ErasedPrimDist d', x) -> do
           if d == unsafeCoerce d'
             then return (fromJust $ OpenSum.prj x)
-            else draw d
-        Nothing -> draw d
+            else dist d
+        Nothing -> dist d
 
 -- | Compute acceptance probability
 accept :: Addr -- ^ address of new sampled value

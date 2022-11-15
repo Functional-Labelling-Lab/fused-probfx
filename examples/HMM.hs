@@ -7,22 +7,22 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant return" #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeApplications    #-}
 
 {- | A variety of possible implementations of a [Hidden Markov Model (HMM)](https://en.wikipedia.org/wiki/Hidden_Markov_model).
 -}
 
 module HMM where
 
-import           Control.Monad ((>=>))
-import           Data.Kind     (Constraint)
-import           Env           (Assign ((:=)), Env, Observable, Observables,
-                                nil, (<:>))
-import           Inference.LW  as LW (lw)
-import           Inference.SIM as SIM (simulate)
-import           Model         (Model, bernoulli', binomial, uniform)
-import           Sampler       (Sampler)
-import Control.Algebra (Has)
+import           Control.Algebra (Has)
+import           Control.Monad   ((>=>))
+import           Data.Kind       (Constraint)
+import           Env             (Assign ((:=)), Env, Observable, Observables,
+                                  nil, (<:>))
+import           Inference.LW    as LW (lw)
+import           Inference.SIM   as SIM (simulate)
+import           Model           (Model, bernoulli', binomial, uniform)
+import           Sampler         (Sampler)
 
 -- | A HMM environment
 type HMMEnv =
@@ -41,7 +41,7 @@ hmmFor :: forall env sig m. (Observable env "y" Int, Observables env '["obs_p", 
   -- | final HMM latent state
   -> m Int
 hmmFor n x = do
-  -- Draw transition and observation parameters from prior distributions
+  -- Dist transition and observation parameters from prior distributions
   trans_p <- uniform @env 0 1 #trans_p
   obs_p   <- uniform @env 0 1 #obs_p
   -- Iterate over @n@ HMM nodes

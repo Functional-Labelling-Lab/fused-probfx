@@ -16,8 +16,8 @@ module PrimDist (
   , IsPrimVal(..)
   , pattern PrimDistPrf
   , ErasedPrimDist(..)
-  -- * Drawing sample
-  , draw
+  -- * Disting sample
+  , dist
   -- * Density
   , prob
   , logProb
@@ -192,39 +192,39 @@ data ErasedPrimDist where
 instance Show ErasedPrimDist where
   show (ErasedPrimDist d) = show d
 
--- | Draw a value from a primitive distribution in the @Sampler@ monad
-draw ::
+-- | Dist a value from a primitive distribution in the @Sampler@ monad
+dist ::
      PrimDist a
   -> Sampler a
-draw (HalfCauchyDist σ )
+dist (HalfCauchyDist σ )
   = abs <$> createSampler (sampleCauchy 0 σ)
-draw (CauchyDist μ σ )
+dist (CauchyDist μ σ )
   = createSampler (sampleCauchy μ σ)
-draw (HalfNormalDist σ )
+dist (HalfNormalDist σ )
   = abs <$> createSampler (sampleNormal 0 σ)
-draw (NormalDist μ σ )
+dist (NormalDist μ σ )
   = createSampler (sampleNormal μ σ)
-draw (UniformDist min max )
+dist (UniformDist min max )
   = createSampler (sampleUniform min max)
-draw (DiscrUniformDist min max )
+dist (DiscrUniformDist min max )
   = createSampler (sampleDiscreteUniform min max)
-draw (GammaDist k θ )
+dist (GammaDist k θ )
   = createSampler (sampleGamma k θ)
-draw (BetaDist α β  )
+dist (BetaDist α β  )
   = createSampler (sampleBeta α β)
-draw (BinomialDist n p  )
+dist (BinomialDist n p  )
   = length . filter (== True) <$> createSampler (sampleBinomial n p)
-draw (BernoulliDist p )
+dist (BernoulliDist p )
   = createSampler (sampleBernoulli p)
-draw (CategoricalDist ps )
+dist (CategoricalDist ps )
   =  fst . (ps !!) <$> createSampler (sampleCategorical $ V.fromList $ fmap snd ps)
-draw (DiscreteDist ps )
+dist (DiscreteDist ps )
   = createSampler (sampleDiscrete ps)
-draw (PoissonDist λ )
+dist (PoissonDist λ )
   = createSampler (samplePoisson λ)
-draw (DirichletDist xs )
+dist (DirichletDist xs )
   = createSampler (sampleDirichlet xs)
-draw (DeterministicDist x) = pure x
+dist (DeterministicDist x) = pure x
 
 -- | Compute the density of a primitive distribution generating an observed value
 prob ::

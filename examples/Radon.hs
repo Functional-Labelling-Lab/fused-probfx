@@ -6,8 +6,8 @@
 {-# LANGUAGE TypeOperators       #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant return" #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE TypeApplications    #-}
 
 {- | A [case study](https://docs.pymc.io/en/v3/pymc-examples/examples/case_studies/multilevel_modeling.html)
     by Gelman and Hill as a hierarchical linear regression model, modelling the relationship between radon levels
@@ -16,16 +16,16 @@
 
 module Radon where
 
-import           Control.Monad (replicateM)
-import           DataSets      (countyIdx, dataFloorValues, logRadon,
-                                n_counties)
-import           Env           (Assign ((:=)), Env (ENil), Observable (get),
-                                Observables, (<:>))
-import           Inference.MH  as MH (mh)
-import           Inference.SIM as SIM (simulate)
-import           Model         (Model, halfCauchy', halfNormal, normal)
-import           Sampler       (Sampler, liftS)
-import Control.Algebra (Has)
+import           Control.Algebra (Has)
+import           Control.Monad   (replicateM)
+import           DataSets        (countyIdx, dataFloorValues, logRadon,
+                                  n_counties)
+import           Env             (Assign ((:=)), Env (ENil), Observable (get),
+                                  Observables, (<:>))
+import           Inference.MH    as MH (mh)
+import           Inference.SIM   as SIM (simulate)
+import           Model           (Model, halfCauchy', halfNormal, normal)
+import           Sampler         (Sampler, liftS)
 
 -- | Return all the positions that a value occurs within a list
 findIndexes :: Eq a => a -> [a] -> [Int]

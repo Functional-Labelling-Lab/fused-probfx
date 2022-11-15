@@ -18,7 +18,7 @@ import           Control.Algebra           (Algebra (alg), Has, run, send,
                                             type (:+:) (L))
 import           Control.Effect.Sum        (Member, type (:+:) (R))
 
--- import Effects.ObsReader (ObsReader (Ask), ask, ObsReaderC, runObsReader)
+
 import           Control.Carrier.ObsReader (ObsReaderC, runObsReader)
 import           Control.Effect.ObsReader  (ObsReader (..), ask)
 

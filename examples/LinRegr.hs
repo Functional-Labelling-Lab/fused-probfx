@@ -5,25 +5,25 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant return" #-}
+{-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE MonoLocalBinds        #-}
+{-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeOperators         #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE TypeApplications #-}
 
 {- | A linear regression model, assuming a linear relationship between x and y co-ordinates.
 -}
 
 module LinRegr where
 
-import           Data.Kind     (Constraint)
-import           Env           (Assign ((:=)), Observable (get), Observables,
-                                nil, (<:>), Env)
-import           Inference.LW  as LW (lw)
-import           Inference.MH  as MH (mh)
-import           Inference.SIM as SIM (simulate)
-import           Model         (Model, normal, uniform)
-import           Sampler       (Sampler)
-import Control.Algebra (Has)
+import           Control.Algebra (Has)
+import           Data.Kind       (Constraint)
+import           Env             (Assign ((:=)), Env, Observable (get),
+                                  Observables, nil, (<:>))
+import           Inference.LW    as LW (lw)
+import           Inference.MH    as MH (mh)
+import           Inference.SIM   as SIM (simulate)
+import           Model           (Model, normal, uniform)
+import           Sampler         (Sampler)
 
 -- | Linear regression environment
 type LinRegrEnv =
@@ -40,7 +40,7 @@ linRegr :: forall env sig m. (Observables env ["y", "m", "c", "σ"] Double, Has 
   -- y co-ordinate
   -> m Double
 linRegr x = do
-  -- Draw prior
+  -- Dist prior
   m <- normal @env 0 3 #m
   c <- normal @env 0 5 #c
   σ <- uniform @env 1 3 #σ

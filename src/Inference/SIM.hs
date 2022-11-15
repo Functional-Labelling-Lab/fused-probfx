@@ -8,44 +8,43 @@
 {-# LANGUAGE KindSignatures             #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE TypeOperators              #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 {- | Simulation.
 -}
 
 module Inference.SIM (
     simulate
-  , runSimulate, DistC, runDist) where
-import           Control.Algebra              (Has, Algebra (alg), (:+:) (L, R))
-import           Control.Carrier.Draw         (DrawC, runDraw)
-import           Control.Carrier.ObsReader    (ObsReaderC, runObsReader)
-import           Control.Carrier.SampleTracer (SampleTracerC, runSampleTracer)
-import           Control.Effect.Dist          (Dist (..))
-import qualified Data.Map                     as Map
-import           Data.Maybe                   (fromMaybe)
-import           Env                          (Env)
-import           PrimDist                     (draw)
-import           Sampler                      (Sampler)
-import           Trace                        (FromSTrace (fromSTrace), STrace)
-import Control.Effect.Lift (Lift)
-import Control.Carrier.Lift (LiftC, runM)
-import Control.Effect.Lift (sendM)
+  , runSimulate, SampObsC, runSampObs) where
+import           Control.Algebra            (Algebra (alg), Has, (:+:) (L, R))
+import           Control.Carrier.Dist       (DistC, runDist)
+import           Control.Carrier.Lift       (LiftC, runM)
+import           Control.Carrier.ObsReader  (ObsReaderC, runObsReader)
+import           Control.Carrier.SampTracer (SampTracerC, runSampTracer)
+import           Control.Effect.Lift        (Lift, sendM)
+import           Control.Effect.SampObs     (SampObs (..))
+import qualified Data.Map                   as Map
+import           Data.Maybe                 (fromMaybe)
+import           Env                        (Env)
+import           PrimDist                   (dist)
+import           Sampler                    (Sampler)
+import           Trace                      (FromSTrace (fromSTrace), STrace)
 
--- Dist Effect Carrier
-newtype DistC (m :: * -> *) (k :: *) = DistC { runDist :: m k }
+-- SampObs Effect Carrier
+newtype SampObsC (m :: * -> *) (k :: *) = SampObsC { runSampObs :: m k }
     deriving (Functor, Applicative, Monad)
 
-instance (Has (Lift Sampler) sig m) => Algebra (Dist :+: sig) (DistC m) where
-  alg hdl sig ctx = DistC $ case sig of
-    L (Dist d obs addr) -> do
-      x <- sendM $ maybe (draw d) pure obs
+instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsC m) where
+  alg hdl sig ctx = SampObsC $ case sig of
+    L (SampObs d obs addr) -> do
+      x <- sendM $ maybe (dist d) pure obs
       pure $ x <$ ctx
-    R other -> alg (runDist . hdl) other ctx
+    R other -> alg (runSampObs . hdl) other ctx
 
 -- | Top-level wrapper for simulating from a model
 simulate :: (FromSTrace env)
   => Env env                                                     -- ^ model environment
-  -> ObsReaderC env (DrawC (SampleTracerC (DistC (LiftC Sampler)))) a -- ^ model
+  -> ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
   -> Sampler (a, Env env)                                        -- ^ (model output, output environment)
 simulate model env = do
   (output, strace) <- runSimulate model env
@@ -54,7 +53,7 @@ simulate model env = do
 -- | Handler for simulating once from a probabilistic program
 runSimulate ::
     Env env                                                     -- ^ model environment
- -> ObsReaderC env (DrawC (SampleTracerC (DistC (LiftC Sampler)))) a -- ^ model
+ -> ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
  -> Sampler (a, STrace)                                         -- ^ (model output, sample trace)
 runSimulate env
-  = runM . runDist . runSampleTracer . runDraw . runObsReader env
+  = runM . runSampObs . runSampTracer . runDist . runObsReader env
