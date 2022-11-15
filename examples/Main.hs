@@ -1,16 +1,20 @@
-{-# LANGUAGE AllowAmbiguousTypes, PolyKinds #-}
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE PolyKinds           #-}
 
 module Main where
 
-import LinRegr ( simulateLinRegr, inferLwLinRegr, inferMhLinRegr )
-import LogRegr ( simulateLogRegr, inferLwLogRegr, inferMHLogRegr )
-import SIR ( simulateSIR, inferSIR, simulateSIRS, simulateSIRSV )
-import LDA ( simLDA, mhLDA )
-import Radon ( simRadon, mhRadon )
-import School ( mhSchool )
-import Sampler ( sampleIOFixed )
-import System.Environment (getArgs)
+import           LDA                (mhLDA, simLDA)
+import           LinRegr            (inferLwLinRegr, inferMhLinRegr,
+                                     simulateLinRegr)
+import           LogRegr            (inferLwLogRegr, inferMHLogRegr,
+                                     simulateLogRegr)
+import           Radon              (mhRadon, simRadon)
+import           Sampler            (sampleIOFixed)
+import           School             (mhSchool)
+import           SIR                (inferSIR, simulateSIR, simulateSIRS,
+                                     simulateSIRSV)
+import           System.Environment (getArgs)
 
 printThenWrite :: Show a => a -> IO ()
 printThenWrite a = print a >> writeFile "model-output.txt" (show a)

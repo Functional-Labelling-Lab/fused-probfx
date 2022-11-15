@@ -1,13 +1,13 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE PolyKinds              #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TypeApplications       #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeOperators          #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 {- | This implements the model environments that users must provide upon running a model;
@@ -29,12 +29,12 @@ module Env
   , UniqueKey
   , LookupType) where
 
-import Data.Kind ( Constraint )
-import Data.Proxy ( Proxy(Proxy) )
-import FindElem ( FindElem(..), Idx(..) )
-import GHC.OverloadedLabels ( IsLabel(..) )
-import GHC.TypeLits ( KnownSymbol, Symbol, symbolVal )
-import Unsafe.Coerce ( unsafeCoerce )
+import           Data.Kind            (Constraint)
+import           Data.Proxy           (Proxy (Proxy))
+import           FindElem             (FindElem (..), Idx (..))
+import           GHC.OverloadedLabels (IsLabel (..))
+import           GHC.TypeLits         (KnownSymbol, Symbol, symbolVal)
+import           Unsafe.Coerce        (unsafeCoerce)
 
 -- | Containers for observable variables
 data ObsVar (x :: Symbol) where
@@ -96,7 +96,7 @@ instance (FindElem x env, LookupType x env ~ a)
   get _ env =
     let idx = unIdx $ findElem @x @env
         f :: Int -> Env env' -> [a]
-        f n (ECons a env) 
+        f n (ECons a env)
          | n == 0    = unsafeCoerce a
          | otherwise = f (n - 1) env
     in  f idx env

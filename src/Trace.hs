@@ -1,10 +1,10 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE GADTs                #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TypeApplications     #-}
+{-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {- | For recording samples and log-probabilities during model execution.
@@ -19,16 +19,17 @@ module Trace (
   , LPTrace
   , updateLPTrace) where
 
-import Data.Map (Map)
-import Data.Maybe ( fromJust )
-import Data.Proxy ( Proxy(..) )
-import Effects.Dist ( Addr )
-import PrimDist ( ErasedPrimDist(..), PrimVal, PrimDist, logProb )
-import Env ( UniqueKey, Assign((:=)), Env(ECons), ObsVar(..), varToStr, nil )
-import GHC.TypeLits ( KnownSymbol )
-import OpenSum (OpenSum)
-import qualified Data.Map as Map
+import           Data.Map     (Map)
+import qualified Data.Map     as Map
+import           Data.Maybe   (fromJust)
+import           Data.Proxy   (Proxy (..))
+import           Env          (Assign ((:=)), Env (ECons), ObsVar (..),
+                               UniqueKey, nil, varToStr)
+import           GHC.TypeLits (KnownSymbol)
+import           OpenSum      (OpenSum)
 import qualified OpenSum
+import           PrimDist     (Addr, ErasedPrimDist (..), PrimDist, PrimVal,
+                               logProb)
 
 {- | The type of sample traces, mapping addresses of sample/observe operations
      to their primitive distributions and sampled values.

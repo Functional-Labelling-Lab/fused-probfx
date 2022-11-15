@@ -29,11 +29,13 @@ tested-with:
 
 library
   exposed-modules:
-                      Effects.Dist,
-                      Effects.Lift,
-                      Effects.ObsReader,
-                      Effects.State,
-                      Effects.Writer,
+                      Control.Carrier.ObsReader,
+                      Control.Carrier.Dist,
+                      Control.Carrier.LPTracer,
+                      Control.Carrier.SampTracer,
+                      Control.Effect.ObsReader,
+                      Control.Effect.SampObs,
+                      Control.Effect.Dist,
                       Inference.LW,
                       Inference.MH,
                       Inference.SIM,
@@ -42,7 +44,6 @@ library
                       Model,
                       OpenSum,
                       PrimDist,
-                      Prog,
                       Sampler,
                       Trace
 
@@ -71,7 +72,8 @@ library
                       mwc-probability               >= 2.3.1 && < 2.4,
                       statistics                    >= 0.16.1 && < 0.17,
                       criterion                     >= 1.5.13 && < 1.6,
-                      split                         >= 0.2.3 && < 0.3
+                      split                         >= 0.2.3 && < 0.3,
+                      fused-effects
 
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -97,7 +99,8 @@ executable prob-fx
   build-depends:  base,
                   prob-fx,
                   lens,
-                  extensible
+                  extensible,
+                  fused-effects
 
 test-suite tests
   type:               exitcode-stdio-1.0
@@ -115,5 +118,6 @@ test-suite tests
                       split,
                       prob-fx,
                       HUnit >= 1.6.0 && < 1.7.0,
-                      lens
+                      lens,
+                      fused-effects
   default-language:   Haskell2010

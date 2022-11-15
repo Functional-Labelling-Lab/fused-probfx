@@ -27,18 +27,20 @@ module Sampler (
   , sampleDirichlet
   ) where
 
-import Control.Monad ( replicateM )
-import Control.Monad.Trans (MonadIO, MonadTrans, lift)
-import Control.Monad.Trans.Reader (ReaderT, ask, mapReaderT, runReaderT)
-import Data.Map (Map)
-import GHC.Word ( Word32 )
-import qualified Data.Vector as V
-import qualified System.Random.MWC as MWC
-import qualified System.Random.MWC.Distributions as MWC.Dist
-import qualified System.Random.MWC.Probability as MWC.Probability
-import Statistics.Distribution ( ContGen(genContVar) )
-import Statistics.Distribution.CauchyLorentz ( cauchyDistribution )
-import System.Random.MWC ( initialize )
+import           Control.Monad                         (replicateM)
+import           Control.Monad.Trans                   (MonadIO, MonadTrans,
+                                                        lift)
+import           Control.Monad.Trans.Reader            (ReaderT, ask,
+                                                        mapReaderT, runReaderT)
+import           Data.Map                              (Map)
+import qualified Data.Vector                           as V
+import           GHC.Word                              (Word32)
+import           Statistics.Distribution               (ContGen (genContVar))
+import           Statistics.Distribution.CauchyLorentz (cauchyDistribution)
+import qualified System.Random.MWC                     as MWC
+import           System.Random.MWC                     (initialize)
+import qualified System.Random.MWC.Distributions       as MWC.Dist
+import qualified System.Random.MWC.Probability         as MWC.Probability
 
 -- | Sampler type, for running IO computations alongside a random number generator
 newtype Sampler a = Sampler {runSampler :: ReaderT MWC.GenIO IO a}

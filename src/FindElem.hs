@@ -1,10 +1,10 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE UndecidableInstances  #-}
 
 {- | Auxiliary definitions for finding a type in a type-level list.
 -}
@@ -13,7 +13,8 @@ module FindElem (
     FindElem(..)
   , Idx(..)) where
 
-import GHC.TypeLits ( TypeError, ErrorMessage(Text, (:<>:), (:$$:), ShowType) )
+import           GHC.TypeLits (ErrorMessage (ShowType, Text, (:$$:), (:<>:)),
+                               TypeError)
 
 -- | Proof that @x@ is an element of the type-level list @xs@
 class FindElem x xs where

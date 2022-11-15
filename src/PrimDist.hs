@@ -1,9 +1,9 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE PatternSynonyms     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 {- | A GADT encoding of (a selection of) primitive distributions
     along with their corresponding sampling and density functions.
@@ -16,30 +16,37 @@ module PrimDist (
   , IsPrimVal(..)
   , pattern PrimDistPrf
   , ErasedPrimDist(..)
-  -- * Sampling
-  , sample
+  -- * Disting sample
+  , dist
   -- * Density
   , prob
-  , logProb) where
+  , logProb
+  -- ** Address
+  -- $Address
+  , Tag
+  , Addr
+  ) where
 
-import Data.Kind ( Constraint )
-import Numeric.Log ( Log(..) )
-import qualified Data.Map as Map
-import qualified Data.Vector as V
-import qualified Data.Vector.Unboxed as UV
+import           Data.Kind                               (Constraint)
+import qualified Data.Map                                as Map
+import qualified Data.Vector                             as V
+import qualified Data.Vector.Unboxed                     as UV
+import           Numeric.Log                             (Log (..))
 import qualified OpenSum
-import qualified System.Random.MWC.Distributions as MWC
-import Statistics.Distribution ( ContDistr(density), DiscreteDistr(probability) )
-import Statistics.Distribution.Beta ( betaDistr )
-import Statistics.Distribution.Binomial ( binomial )
-import Statistics.Distribution.CauchyLorentz ( cauchyDistribution )
-import Statistics.Distribution.Dirichlet ( dirichletDensity, dirichletDistribution )
-import Statistics.Distribution.DiscreteUniform ( discreteUniformAB )
-import Statistics.Distribution.Gamma ( gammaDistr )
-import Statistics.Distribution.Normal ( normalDistr )
-import Statistics.Distribution.Poisson ( poisson )
-import Statistics.Distribution.Uniform ( uniformDistr )
-import Sampler
+import           Sampler
+import           Statistics.Distribution                 (ContDistr (density),
+                                                          DiscreteDistr (probability))
+import           Statistics.Distribution.Beta            (betaDistr)
+import           Statistics.Distribution.Binomial        (binomial)
+import           Statistics.Distribution.CauchyLorentz   (cauchyDistribution)
+import           Statistics.Distribution.Dirichlet       (dirichletDensity,
+                                                          dirichletDistribution)
+import           Statistics.Distribution.DiscreteUniform (discreteUniformAB)
+import           Statistics.Distribution.Gamma           (gammaDistr)
+import           Statistics.Distribution.Normal          (normalDistr)
+import           Statistics.Distribution.Poisson         (poisson)
+import           Statistics.Distribution.Uniform         (uniformDistr)
+import qualified System.Random.MWC.Distributions         as MWC
 
 -- | Primitive distribution
 data PrimDist a where
@@ -162,20 +169,20 @@ pattern PrimDistPrf d <- d@(primDistPrf -> IsPrimVal)
 -- | Proof that all primitive distributions generate a primitive value
 primDistPrf :: PrimDist x -> IsPrimVal x
 primDistPrf d = case d of
-  HalfCauchyDist {} -> IsPrimVal
-  CauchyDist {} -> IsPrimVal
-  NormalDist {} -> IsPrimVal
-  HalfNormalDist  {} -> IsPrimVal
-  UniformDist  {} -> IsPrimVal
-  DiscrUniformDist {} -> IsPrimVal
-  GammaDist {} -> IsPrimVal
-  BetaDist {} -> IsPrimVal
-  BinomialDist {} -> IsPrimVal
-  BernoulliDist {} -> IsPrimVal
-  CategoricalDist {} -> IsPrimVal
-  DiscreteDist {} -> IsPrimVal
-  PoissonDist {} -> IsPrimVal
-  DirichletDist {} -> IsPrimVal
+  HalfCauchyDist {}    -> IsPrimVal
+  CauchyDist {}        -> IsPrimVal
+  NormalDist {}        -> IsPrimVal
+  HalfNormalDist  {}   -> IsPrimVal
+  UniformDist  {}      -> IsPrimVal
+  DiscrUniformDist {}  -> IsPrimVal
+  GammaDist {}         -> IsPrimVal
+  BetaDist {}          -> IsPrimVal
+  BinomialDist {}      -> IsPrimVal
+  BernoulliDist {}     -> IsPrimVal
+  CategoricalDist {}   -> IsPrimVal
+  DiscreteDist {}      -> IsPrimVal
+  PoissonDist {}       -> IsPrimVal
+  DirichletDist {}     -> IsPrimVal
   DeterministicDist {} -> IsPrimVal
 
 -- | For erasing the types of primitive distributions
@@ -185,39 +192,39 @@ data ErasedPrimDist where
 instance Show ErasedPrimDist where
   show (ErasedPrimDist d) = show d
 
--- | Draw a value from a primitive distribution in the @Sampler@ monad
-sample ::
+-- | Dist a value from a primitive distribution in the @Sampler@ monad
+dist ::
      PrimDist a
   -> Sampler a
-sample (HalfCauchyDist σ )
+dist (HalfCauchyDist σ )
   = abs <$> createSampler (sampleCauchy 0 σ)
-sample (CauchyDist μ σ )
+dist (CauchyDist μ σ )
   = createSampler (sampleCauchy μ σ)
-sample (HalfNormalDist σ )
+dist (HalfNormalDist σ )
   = abs <$> createSampler (sampleNormal 0 σ)
-sample (NormalDist μ σ )
+dist (NormalDist μ σ )
   = createSampler (sampleNormal μ σ)
-sample (UniformDist min max )
+dist (UniformDist min max )
   = createSampler (sampleUniform min max)
-sample (DiscrUniformDist min max )
+dist (DiscrUniformDist min max )
   = createSampler (sampleDiscreteUniform min max)
-sample (GammaDist k θ )
+dist (GammaDist k θ )
   = createSampler (sampleGamma k θ)
-sample (BetaDist α β  )
+dist (BetaDist α β  )
   = createSampler (sampleBeta α β)
-sample (BinomialDist n p  )
+dist (BinomialDist n p  )
   = length . filter (== True) <$> createSampler (sampleBinomial n p)
-sample (BernoulliDist p )
+dist (BernoulliDist p )
   = createSampler (sampleBernoulli p)
-sample (CategoricalDist ps )
-  =  fst . (ps !!) <$> createSampler (sampleCategorical $ V.fromList $ fmap snd ps) 
-sample (DiscreteDist ps )
+dist (CategoricalDist ps )
+  =  fst . (ps !!) <$> createSampler (sampleCategorical $ V.fromList $ fmap snd ps)
+dist (DiscreteDist ps )
   = createSampler (sampleDiscrete ps)
-sample (PoissonDist λ )
+dist (PoissonDist λ )
   = createSampler (samplePoisson λ)
-sample (DirichletDist xs )
+dist (DirichletDist xs )
   = createSampler (sampleDirichlet xs)
-sample (DeterministicDist x) = pure x
+dist (DeterministicDist x) = pure x
 
 -- | Compute the density of a primitive distribution generating an observed value
 prob ::
@@ -226,9 +233,9 @@ prob ::
   -> Double     -- ^ density
 prob (DirichletDist xs) ys
   | Prelude.sum xs' /= 1 = error "dirichlet can't normalize"
-  | otherwise 
+  | otherwise
     = case dirichletDistribution (UV.fromList xs')
-      of Left e -> error "dirichlet error"
+      of Left e  -> error "dirichlet error"
          Right d -> let Exp p = dirichletDensity d (UV.fromList ys) in exp p
   where
     xs' = map (/Prelude.sum xs) xs
@@ -267,3 +274,12 @@ logProb :: PrimDist a -- ^ distribution
   -> a                -- ^ observed value
   -> Double           -- ^ log density
 logProb d = log . prob d
+
+{- $Address
+   Run-time identifiers for probabilistic operations
+-}
+
+-- | An observable variable name assigned to a primitive distribution, representing a compile-time identifier
+type Tag  = String
+-- | An observable variable name and the index of its run-time occurrence, representing a run-time identifier
+type Addr = (Tag, Int)

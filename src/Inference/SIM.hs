@@ -1,74 +1,59 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 {- | Simulation.
 -}
 
 module Inference.SIM (
     simulate
-  , runSimulate
-  , traceSamples
-  , handleSamp
-  , handleObs) where
+  , runSimulate, SampObsC, runSampObs) where
+import           Control.Algebra            (Algebra (alg), Has, (:+:) (L, R))
+import           Control.Carrier.Dist       (DistC, runDist)
+import           Control.Carrier.Lift       (LiftC, runM)
+import           Control.Carrier.ObsReader  (ObsReaderC, runObsReader)
+import           Control.Carrier.SampTracer (SampTracerC, runSampTracer)
+import           Control.Effect.Lift        (Lift, sendM)
+import           Control.Effect.SampObs     (SampObs (..))
+import qualified Data.Map                   as Map
+import           Data.Maybe                 (fromMaybe)
+import           Env                        (Env)
+import           PrimDist                   (dist)
+import           Sampler                    (Sampler)
+import           Trace                      (FromSTrace (fromSTrace), STrace)
 
-import Data.Map (Map)
-import Effects.Dist ( Observe(..), Sample(..), Dist )
-import Effects.ObsReader ( ObsReader )
-import Effects.State ( State, modify, handleState )
-import Env ( Env )
-import Model ( Model, handleCore )
-import OpenSum (OpenSum)
-import PrimDist ( pattern PrimDistPrf, sample )
-import Prog ( Member(prj), Prog(..), discharge )
-import qualified Data.Map as Map
-import qualified OpenSum
-import Sampler ( Sampler )
-import Trace ( FromSTrace(..), STrace, updateSTrace )
-import Unsafe.Coerce (unsafeCoerce)
+-- SampObs Effect Carrier
+newtype SampObsC (m :: * -> *) (k :: *) = SampObsC { runSampObs :: m k }
+    deriving (Functor, Applicative, Monad)
+
+instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsC m) where
+  alg hdl sig ctx = SampObsC $ case sig of
+    L (SampObs d obs addr) -> do
+      x <- sendM $ maybe (dist d) pure obs
+      pure $ x <$ ctx
+    R other -> alg (runSampObs . hdl) other ctx
 
 -- | Top-level wrapper for simulating from a model
-simulate :: (FromSTrace env, es ~ '[ObsReader env, Dist,State STrace, Observe, Sample])
-  => Model env es a       -- ^ model
-  -> Env env              -- ^ model environment
-  -> Sampler (a, Env env) -- ^ (model output, output environment)
+simulate :: (FromSTrace env)
+  => Env env                                                     -- ^ model environment
+  -> ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
+  -> Sampler (a, Env env)                                        -- ^ (model output, output environment)
 simulate model env = do
   (output, strace) <- runSimulate model env
   return (output, fromSTrace strace)
 
 -- | Handler for simulating once from a probabilistic program
-runSimulate :: (es ~ '[ObsReader env, Dist, State STrace, Observe, Sample])
- => Model env es a      -- ^ model
- -> Env env             -- ^ model environment
- -> Sampler (a, STrace) -- ^ (model output, sample trace)
-runSimulate model
-  = handleSamp . handleObs . handleState Map.empty . traceSamples . handleCore model
-
--- | Trace sampled values for each @Sample@ operation
-traceSamples :: (Member (State STrace) es, Member Sample es) => Prog es a -> Prog es a
-traceSamples (Val x) = return x
-traceSamples (Op op k) = case prj op of
-  Just (Sample (PrimDistPrf d) α) ->
-       Op op (\x -> do modify (updateSTrace α d x);
-                       traceSamples (k x))
-  Nothing -> Op op (traceSamples . k)
-
--- | Handler @Observe@ operations by simply passing forward their observed value, performing no side-effects
-handleObs :: Prog (Observe : es) a -> Prog es  a
-handleObs (Val x) = return x
-handleObs (Op op k) = case discharge op of
-  Right (Observe d y α) -> handleObs (k y)
-  Left op' -> Op op' (handleObs . k)
-
--- | Handle @Sample@ operations by using the @Sampler@ monad to draw from primitive distributions
-handleSamp :: Prog '[Sample] a -> Sampler a
-handleSamp  (Val x)  = return x
-handleSamp  (Op op k) = case discharge op of
-  Right (Sample (PrimDistPrf d) α) ->
-    do  x <- sample d
-        handleSamp (k x)
-  _        -> error "Impossible: Nothing cannot occur"
+runSimulate ::
+    Env env                                                     -- ^ model environment
+ -> ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
+ -> Sampler (a, STrace)                                         -- ^ (model output, sample trace)
+runSimulate env
+  = runM . runSampObs . runSampTracer . runDist . runObsReader env
