@@ -27,7 +27,7 @@ import           Control.Monad   (replicateM)
 import           Data.Kind       (Constraint)
 import           Env             (Assign ((:=)), Env, Observable (get),
                                   Observables, nil, (<:>))
-import           Inference.MH    as MH (mh)
+import           Inference.MH    as MH (mhRaw)
 import           Inference.SIM   as SIM (simulate)
 import           Model           (Model, categorical, dirichlet, discrete')
 import           Sampler         (Sampler)
@@ -146,9 +146,9 @@ mhLDA  = do
   -- Specify model environment
       env_mh_in = #θ := [] <:>  #φ := [] <:> #w := topic_data <:> nil
   -- Run MH for 500 iterations
-  env_mh_outs <- MH.mh 500 (topicModel @TopicEnv vocab n_topics n_words) env_mh_in ["φ", "θ"]
+  env_mh_outs <- MH.mhRaw 500 (topicModel @TopicEnv vocab n_topics n_words) env_mh_in ["φ", "θ"]
   -- Dist the most recent sampled parameters from the MH trace
-  let env_pred   = head env_mh_outs
-      θs         = get #θ env_pred
-      φs         = get #φ env_pred
+  let env_pred = head env_mh_outs
+      θs       = get #θ env_pred
+      φs       = get #φ env_pred
   return (θs, φs)

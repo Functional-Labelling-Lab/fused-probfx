@@ -19,7 +19,7 @@ import           Control.Monad   (foldM)
 import           Env             (Assign ((:=)), Env, Observable (get),
                                   Observables, nil, (<:>))
 import           Inference.LW    as LW (lw)
-import           Inference.MH    as MH (mh)
+import           Inference.MH    as MH (mhRaw)
 import           Inference.SIM   as SIM (simulate)
 import           Model           (Model, bernoulli, gamma', normal, normal')
 import           Sampler         (Sampler)
@@ -98,7 +98,7 @@ inferMHLogRegr = do
   -- Run MH inference for 20000 iterations
   {- The agument ["m", "b"] is optional for indicating interest in learning #m and #b in particular,
      causing other variables to not be resampled (unless necessary) during MH. -}
-  mhTrace :: [Env LogRegrEnv] <- MH.mh 50000 (logRegr @LogRegrEnv xs) env ["m", "b"]
+  mhTrace <- MH.mhRaw 50000 (logRegr @LogRegrEnv xs) env ["m", "b"]
   -- Retrieve values sampled for #m and #b during MH
   let m_samples = concatMap (get #m) mhTrace
       b_samples = concatMap (get #b) mhTrace

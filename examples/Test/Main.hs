@@ -44,7 +44,7 @@ testMhPredLDA = TestCase $ do
   assertEqual "Testing mhLDA"  mhPredLDAExpected output
 
 tests :: Test
-tests = TestList [testSimLinRegr, testLwLinRegr, testMhLinRegr, testSimSIR, testMhSIR, testSimLDA, testMhPredLDA]
+tests = TestList [testMhLinRegr]
 
 main :: IO ()
 main = do

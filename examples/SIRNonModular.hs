@@ -35,7 +35,7 @@ import           Env                           (Assign ((:=)), Env,
                                                 Observable (get), Observables,
                                                 nil, (<:>))
 import           HMM                           (ObsModel, TransModel, hmmGen)
-import           Inference.MH                  as MH (mh)
+import           Inference.MH                  as MH (mhRaw)
 import           Inference.SIM                 as SIM (simulate)
 import           Model                         (Model, beta, binomial', gamma,
                                                 poisson)
@@ -150,7 +150,7 @@ inferSIR = do
       mh_env_in :: Env SIRenv
       mh_env_in = #β := [] <:> #γ := [0.0085] <:> #ρ := [] <:> #𝜉 := 𝜉s <:> nil
   -- Run MH inference over 50000 iterations
-  mhTrace <- MH.mh 5000 (hmmSIR' @SIRenv 100 sir_0) mh_env_in ["β", "ρ"]
+  mhTrace <- MH.mhRaw 5000 (hmmSIR' @SIRenv 100 sir_0) mh_env_in ["β", "ρ"]
   -- Get the sampled values for model parameters ρ and β
   let ρs = concatMap (get #ρ) mhTrace
       βs = concatMap (get #β) mhTrace

@@ -20,7 +20,7 @@ import           Data.Kind       (Constraint)
 import           Env             (Assign ((:=)), Env, Observable (get),
                                   Observables, nil, (<:>))
 import           Inference.LW    as LW (lw)
-import           Inference.MH    as MH (mh)
+import           Inference.MH    as MH (mhRaw)
 import           Inference.SIM   as SIM (simulate)
 import           Model           (Model, normal, uniform)
 import           Sampler         (Sampler)
@@ -84,7 +84,7 @@ inferMhLinRegr = do
       x_envs :: [(Double, Env LinRegrEnv)]
       x_envs = [(x, env) | x <- xs, let env = (#m := []) <:> (#c := []) <:> (#σ := []) <:> (#y := [3*x]) <:> nil]
   -- Run MH for 100 iterations on each pair of model input and environment
-  mhTrace <- concat <$> mapM (\(x, env) -> MH.mh 100 (linRegr @LinRegrEnv x) env ["m", "c"]) x_envs
+  mhTrace <-  concat <$> mapM (\(x, env) -> MH.mhRaw 100 (linRegr @LinRegrEnv x) env ["m", "c"]) x_envs
   -- Get the sampled values of mu
   let mus = concatMap (get #m) mhTrace
   return mus
