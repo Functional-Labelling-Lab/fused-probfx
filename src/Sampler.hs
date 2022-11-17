@@ -10,6 +10,7 @@ module Sampler (
   , sampleIO
   , sampleIOFixed
   , createSampler
+  , sampleIOCustom
   -- * Sampling functions
   -- $Sampling-functions
   , sampleRandom
