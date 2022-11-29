@@ -33,7 +33,7 @@ type HMMEnv =
 
 {- | HMM as a loop
 -}
-hmmFor :: forall env sig m. (Observable env "y" Int, Observables env '["obs_p", "trans_p"] Double, Has (Model env) sig m)
+hmmFor :: (Observable env "y" Int, Observables env '["obs_p", "trans_p"] Double, Has (Model env) sig m)
   -- | number of HMM nodes
   => Int
   -- | initial HMM latent state
@@ -42,15 +42,15 @@ hmmFor :: forall env sig m. (Observable env "y" Int, Observables env '["obs_p", 
   -> m Int
 hmmFor n x = do
   -- Dist transition and observation parameters from prior distributions
-  trans_p <- uniform @env 0 1 #trans_p
-  obs_p   <- uniform @env 0 1 #obs_p
+  trans_p <- uniform 0 1 #trans_p
+  obs_p   <- uniform 0 1 #obs_p
   -- Iterate over @n@ HMM nodes
   let hmmLoop i x_prev | i < n = do
                             -- transition to next latent state
-                            dX <- fromEnum <$> bernoulli' @env trans_p
+                            dX <- fromEnum <$> bernoulli' trans_p
                             let x = x_prev + dX
                             -- project latent state to observation
-                            binomial @env x obs_p #y
+                            binomial x obs_p #y
                             hmmLoop (i - 1) x
                        | otherwise = return x_prev
   hmmLoop 0 x
@@ -76,30 +76,30 @@ inferLwHMM   = do
 
 {- | A modular HMM.
 -}
-transModel ::  forall env sig m. Has (Model env) sig m => Double -> Int -> m Int
+transModel :: Has (Model env) sig m => Double -> Int -> m Int
 transModel transition_p x_prev = do
-  dX <- fromEnum <$> bernoulli' @env transition_p
+  dX <- fromEnum <$> bernoulli' transition_p
   return (x_prev + dX)
 
-obsModel :: forall env sig m. (Observable env "y" Int, Has (Model env) sig m)
+obsModel :: (Observable env "y" Int, Has (Model env) sig m)
   => Double -> Int -> m Int
 obsModel observation_p x = do
-  y <- binomial @env x observation_p #y
+  y <- binomial x observation_p #y
   return y
 
-hmmNode :: forall env sig m. (Observable env "y" Int, Has (Model env) sig m)
+hmmNode :: (Observable env "y" Int, Has (Model env) sig m)
   => Double -> Double -> Int -> m Int
 hmmNode transition_p observation_p x_prev = do
-  x_i <- transModel @env transition_p x_prev
-  y_i <- obsModel @env observation_p x_i
+  x_i <- transModel transition_p x_prev
+  y_i <- obsModel observation_p x_i
   return x_i
 
-hmm :: forall env sig m. (Observable env "y" Int, Observables env '["obs_p", "trans_p"] Double, Has (Model env) sig m)
+hmm :: (Observable env "y" Int, Observables env '["obs_p", "trans_p"] Double, Has (Model env) sig m)
   => Int -> (Int -> m Int)
 hmm n x = do
-  trans_p <- uniform @env 0 1 #trans_p
-  obs_p   <- uniform @env 0 1 #obs_p
-  foldr (>=>) return (replicate n (hmmNode @env trans_p obs_p)) x
+  trans_p <- uniform 0 1 #trans_p
+  obs_p   <- uniform 0 1 #obs_p
+  foldr (>=>) return (replicate n (hmmNode trans_p obs_p)) x
 
 {- | A higher-order, generic HMM.
 -}

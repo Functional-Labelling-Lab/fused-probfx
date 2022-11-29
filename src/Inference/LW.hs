@@ -21,17 +21,19 @@ import           Control.Effect.SampObs     (SampObs (SampObs))
 import           Control.Monad              (replicateM)
 import qualified Data.Map                   as Map (filterWithKey, foldr, (!?))
 import           Data.Maybe                 (isJust)
-import           Env                        (Env)
+import           Env                        (Env, EnvElem (Elem))
 import           Inference.SIM              (SampObsC, runSampObs)
 import           PrimDist                   (logProb)
 import           Sampler                    (Sampler)
 import           Trace                      (FromSTrace (..), STrace)
+import Control.Carrier.Product (ProductC, runProduct)
+import Control.Effect.ObsReader (ObsReader)
 
 -- | Top-level wrapper for Likelihood-Weighting (LW) inference
 lw :: (FromSTrace env)
     => Int            -- ^ number of LW iterations
     -> Env env        -- ^ model environment
-    -> ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
+    -> ProductC ObsReader ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
     -> Sampler [(Env env, Double)] -- ^ [(output model environment, likelihood-weighting)]
 lw n env model = do
   lwTrace <- replicateM n (runLW env model)
@@ -40,9 +42,9 @@ lw n env model = do
 -- | Handler for one iteration of LW
 runLW ::
      Env env        -- ^ model environment
-  -> ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
+  -> ProductC ObsReader ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
   -> Sampler ((a, STrace), Double) -- ^ ((model output, zsample trace), likelihood-weighting)
 runLW env m = do
-    ((output, strace), lptrace) <- runM $ runSampObs $ runLPTracer False $ runSampTracer $ runDist $ runObsReader env m
+    ((output, strace), lptrace) <- runM $ runSampObs $ runLPTracer False $ runSampTracer $ runDist $ runProduct env (\(Elem vs) -> runObsReader vs) m
     let l = exp $ Map.foldr (+) 0 lptrace
     return ((output, strace), l)
