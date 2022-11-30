@@ -23,13 +23,15 @@ import           Data.Map     (Map)
 import qualified Data.Map     as Map
 import           Data.Maybe   (fromJust)
 import           Data.Proxy   (Proxy (..))
-import           Env          (Assign ((:=)), Env (ECons), ObsVar (..),
-                               UniqueKey, nil, varToStr)
+import           Env          (Assign ((:=)), Env, EnvElem(..), ObsVar (..),
+                               nil, varToStr, HasObsVar)
 import           GHC.TypeLits (KnownSymbol)
 import           OpenSum      (OpenSum)
 import qualified OpenSum
 import           PrimDist     (Addr, ErasedPrimDist (..), PrimDist, PrimVal,
                                logProb)
+import Data.WorldPeace.Product.Extra (Elem)
+import Data.WorldPeace (Product(Cons))
 
 {- | The type of sample traces, mapping addresses of sample/observe operations
      to their primitive distributions and sampled values.
@@ -44,8 +46,8 @@ class FromSTrace env where
 instance FromSTrace '[] where
   fromSTrace _ = nil
 
-instance (UniqueKey x env ~ 'True, KnownSymbol x, Eq a, OpenSum.Member a PrimVal, FromSTrace env) => FromSTrace ((x := a) : env) where
-  fromSTrace sMap = ECons (extractSamples (ObsVar @x, Proxy @a) sMap) (fromSTrace sMap)
+instance (HasObsVar x env ~ False, KnownSymbol x, Eq a, OpenSum.Member a PrimVal, FromSTrace env) => FromSTrace ((x := a) : env) where
+  fromSTrace sMap = Cons (Elem $ extractSamples (ObsVar @x, Proxy @a) sMap) (fromSTrace sMap)
 
 extractSamples ::  forall a x. (Eq a, OpenSum.Member a PrimVal) => (ObsVar x, Proxy a) -> STrace -> [a]
 extractSamples (x, typ)  =

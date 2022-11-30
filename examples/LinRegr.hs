@@ -17,7 +17,7 @@ module LinRegr where
 
 import           Control.Algebra (Has)
 import           Data.Kind       (Constraint)
-import           Env             (Assign ((:=)), Env, Observable (get),
+import           Env             (Assign ((:=)), Env, Observable,
                                   Observables, nil, (<:>))
 import           Inference.LW    as LW (lw)
 import           Inference.MH    as MH (mhRaw)

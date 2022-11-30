@@ -25,7 +25,7 @@ module LDA where
 import           Control.Algebra (Has)
 import           Control.Monad   (replicateM)
 import           Data.Kind       (Constraint)
-import           Env             (Assign ((:=)), Env, Observable (get),
+import           Env             (Assign ((:=)), Env, Observable,
                                   Observables, nil, (<:>))
 import           Inference.MH    as MH (mhRaw)
 import           Inference.SIM   as SIM (simulate)

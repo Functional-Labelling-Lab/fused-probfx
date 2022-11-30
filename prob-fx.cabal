@@ -33,16 +33,18 @@ library
                       Control.Carrier.Dist,
                       Control.Carrier.LPTracer,
                       Control.Carrier.SampTracer,
+                      Control.Carrier.EffUnion,
                       Control.Effect.ObsReader,
                       Control.Effect.SampObs,
                       Control.Effect.Dist,
+                      Control.Effect.EffUnion,
+                      Data.WorldPeace.Product.Extra,
                       Inference.LW,
                       Inference.MH,
                       Inference.SIM,
                       Env,
                       FindElem,
                       Model,
-                      OpenSum,
                       PrimDist,
                       Sampler,
                       Trace
@@ -73,7 +75,8 @@ library
                       statistics                    >= 0.16.1 && < 0.17,
                       criterion                     >= 1.5.13 && < 1.6,
                       split                         >= 0.2.3 && < 0.3,
-                      fused-effects
+                      world-peace,
+                      fused-effects,
 
   -- Directories containing source files.
   hs-source-dirs:      src

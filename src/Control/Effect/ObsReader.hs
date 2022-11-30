@@ -4,6 +4,7 @@
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeOperators       #-}
 
 {- | The effect for reading observable variables from a model environment.
 -}
@@ -16,17 +17,14 @@ module Control.Effect.ObsReader (
 import           Control.Algebra
 import           Data.Kind       (Type)
 import           Data.Maybe      (listToMaybe)
-import           Env             (Assign, Env, ObsVar, Observable (..))
+import           Env             (Assign (..), ObsVar)
 import           GHC.Types       (Symbol)
 
 -- | The effect for reading observed values from a model environment @env@
-data ObsReader (env :: [Assign Symbol Type]) (m :: Type -> Type) (k :: Type) where
+data ObsReader (e :: Assign Symbol Type) (m :: Type -> Type) (k :: Type) where
   -- | Given the observable variable @x@ is assigned a list of type @[a]@ in @env@, attempt to retrieve its head value.
-  Ask :: Observable env x a
-    => ObsVar x                   -- ^ variable @x@ to read from
-    -> ObsReader env m (Maybe a)  -- ^ the head value from @x@'s list
+  Ask :: ObsReader (x ':= a) m (Maybe a)  -- ^ the head value from @x@'s list
 
-ask :: forall env sig m x a. (Has (ObsReader env) sig m, Observable env x a)
-  => ObsVar x
-  -> m (Maybe a)
-ask x = send (Ask @env x)
+ask :: forall x a sig m. (Has (ObsReader (x ':= a)) sig m)
+  => m (Maybe a)
+ask = send (Ask @x)

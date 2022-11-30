@@ -1,15 +1,16 @@
-{-# LANGUAGE AllowAmbiguousTypes        #-}
-{-# LANGUAGE DataKinds                  #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures             #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TypeApplications           #-}
-{-# LANGUAGE TypeOperators              #-}
-{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE UndecidableInstances  #-}
 
 {- | The effect for reading observable variables from a model environment.
 -}
@@ -26,28 +27,32 @@ import           Control.Effect.State       (State)
 import qualified Control.Effect.State       as State
 import           Data.Kind                  (Type)
 import           Data.Maybe                 (listToMaybe)
-import           Env                        (Assign, Env, ObsVar,
-                                             Observable (..))
+import           Env                        (Assign (..), Env, ObsVar)
 import           GHC.Base                   (Symbol)
 
-newtype ObsReaderC (env :: [Assign Symbol *]) m k = ObsReaderC { runObsReaderC :: StateC (Env env) m k }
-    deriving (Functor, Applicative, Monad)
+data ObsReaderC (e :: Assign Symbol *) m k where
+    ObsReaderC :: { runObsReaderC :: StateC [a] m k } -> ObsReaderC (x ':= a) m k
+    deriving (Applicative, Monad)
 
-runObsReader :: Functor m => Env env -> ObsReaderC env m a -> m a
-runObsReader env (ObsReaderC runObsReaderC) = evalState env runObsReaderC
+instance Functor m => Functor (ObsReaderC e m) where
+    fmap :: (a -> b) -> ObsReaderC e m a -> ObsReaderC e m b
+    fmap f (ObsReaderC runObsReaderC) = ObsReaderC $ fmap f runObsReaderC
 
-instance (Algebra sig m) => Algebra (ObsReader env :+: sig) (ObsReaderC env m) where
+runObsReader :: Functor m => [a] -> ObsReaderC (x ':= a) m k -> m k
+runObsReader vs (ObsReaderC runObsReaderC) = evalState vs runObsReaderC
+
+instance (Algebra sig m) => Algebra (ObsReader (x ':= a) :+: sig) (ObsReaderC (x ':= a) m) where
     alg hdl sig ctx = ObsReaderC $ case sig of
-        L (Ask x) -> do
+        L Ask -> do
             -- Use nested state effect to get current env
-            env <- State.get @(Env env)
+            vs <- State.get @[a]
 
-            case get x env of
+            case vs of
                 -- No values for x: return Nothing
                 [] -> pure $ Nothing <$ ctx
                 -- Values for x: pop and return first value
-                (v : vs) -> do
-                    State.put $ set x vs env
+                (v : vt) -> do
+                    State.put vt
                     pure $ Just v <$ ctx
 
         R other -> alg (runObsReaderC . hdl) (R other) ctx
