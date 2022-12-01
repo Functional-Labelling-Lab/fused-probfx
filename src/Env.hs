@@ -37,7 +37,7 @@ module Env
 import           Data.Kind                     (Constraint)
 import           Data.Proxy                    (Proxy (Proxy))
 import           Data.WorldPeace.Product       (Product (Cons, Nil))
-import           Data.WorldPeace.Product.Extra (Elem, PElem)
+import           Data.WorldPeace.Extra         (IsMember)
 import           Data.WorldPeace.Union         (Union)
 import           FindElem                      (FindElem (..), Idx (..))
 import           GHC.OverloadedLabels          (IsLabel (..))
@@ -72,7 +72,7 @@ infixr 5 <:>
 (<:>) :: HasObsVar x env ~ False => Assign (ObsVar x) [a] -> Env env -> Env ((x := a) : env)
 (_ := as) <:> env = Cons (Elem as) env
 
-type Observable env x a = (Elem (x := a) env ~ True, PElem (x := a) env)
+type Observable env x a = IsMember (x := a) env
 
 type family Observables env (ks :: [Symbol]) a :: Constraint where
   Observables env (x ': xs) a = (Observable env x a, Observables env xs a)

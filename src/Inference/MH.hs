@@ -33,6 +33,7 @@ import           Control.Carrier.Reader     (ReaderC, runReader)
 import           Control.Carrier.SampTracer (SampTracerC, runSampTracer)
 import           Control.Carrier.EffUnion   (EffUnionC, runEffUnion)
 import           Control.Effect.ObsReader   (ObsReader)
+import           Control.Effect.Lift        (Lift, sendM)
 import           Control.Effect.SampObs     (SampObs (..))
 import           Control.Effect.Sum         ((:+:) (L, R))
 import           Control.Monad              ((>=>))
@@ -43,7 +44,7 @@ import qualified Data.Map                   as Map
 import           Data.Maybe                 (catMaybes, fromJust)
 import           Data.Set                   (Set, (\\))
 import qualified Data.Set                   as Set
-import           Env                        (Env, EnvElem (Elem))
+import           Env                        (Env)
 import           OpenSum                    (OpenSum (..))
 import qualified OpenSum
 import           PrimDist                   (Addr,
@@ -54,6 +55,7 @@ import           PrimDist                   (Addr,
 import           Sampler                    (Sampler, liftS)
 import           Trace                      (FromSTrace (..), LPTrace, STrace,
                                              updateLPTrace)
+import           Model                      (Model, runModel)
 import           Unsafe.Coerce              (unsafeCoerce)
 import Control.Effect.Reader (Reader, ask)
 
@@ -74,7 +76,7 @@ instance (Has (Lift Sampler) sig m, Algebra (Reader (STrace, Addr) :+: sig) (Rea
 -- | Top-level wrapper for Metropolis-Hastings (MH) inference - successful sampling indexing version
 mh :: (FromSTrace env)
   => Int -- number of MH samplings
-  -> EffUnionC ObsReader ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler))))) a -- ^ model awaiting an input
+  -> Model env (SampObs :+: Lift Sampler) (SampTracerC (LPTracerC (SampObsC (LiftC Sampler)))) a -- ^ model awaiting an input
   -> Env env        -- ^ (model input, input model environment)
   -> [Tag] -- ^ optional list of observable variable names (strings) to specify sample sites of interest
            {- For example, provide "mu" to specify interest in sampling #mu. This causes other variables to not be resampled unless necessary. -}
@@ -96,7 +98,7 @@ mh n model env_0 tags = do
 -- | Top-level wrapper for Metropolis-Hastings (MH) inference - raw indexing version
 mhRaw :: (FromSTrace env)
   => Int -- number of MH samplings
-  -> EffUnionC ObsReader ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler))))) a -- ^ model awaiting an input
+  -> Model env (SampObs :+: Lift Sampler) (SampTracerC (LPTracerC (SampObsC (LiftC Sampler)))) a -- ^ model awaiting an input
   -> Env env        -- ^ (model input, input model environment)
   -> [Tag] -- ^ optional list of observable variable names (strings) to specify sample sites of interest
            {- For example, provide "mu" to specify interest in sampling #mu. This causes other variables to not be resampled unless necessary. -}
@@ -117,7 +119,7 @@ mhRaw n model env_0 tags = do
 
 -- | Perform one step of MH
 mhStep ::
-     EffUnionC ObsReader ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
+     Model env (SampObs :+: Lift Sampler) (SampTracerC (LPTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
   -> Env env                  -- ^ model environment
   -> [Tag]                    -- ^ tags indicating sample sites of interest
   -> ((a, STrace), LPTrace) -- ^ trace of previous MH outputs
@@ -142,13 +144,13 @@ mhStep model env tags trace = do
 
 -- | Handler for one iteration of MH
 runMH ::
-     EffUnionC ObsReader ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
+     Model env (SampObs :+: Lift Sampler) (SampTracerC (LPTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
   -> Env env        -- ^ model environment
   -> STrace         -- ^ sample trace of previous MH iteration
   -> Addr           -- ^ sample address of interest
   -> Sampler ((a, STrace), LPTrace) -- ^ (model output, sample trace, log-probability trace)
 runMH model env strace α_samp =
-     runM $ runReader (strace, α_samp) $ runSampObs $ runLPTracer True $ runSampTracer $ runDist $ runEffUnion env (\(Elem vs) -> runObsReader vs) model
+     runM $ runReader (strace, α_samp) $ runSampObs $ runLPTracer True $ runSampTracer $ runModel env model
 
 -- | For a given address, look up a sampled value from a sample trace, returning
 --   it only if the primitive distribution it was sampled from matches the current one.

@@ -24,6 +24,8 @@ import           Control.Carrier.SampTracer (SampTracerC, runSampTracer)
 import           Control.Carrier.EffUnion   (EffUnionC, runEffUnion)
 import           Control.Effect.Lift        (Lift, sendM)
 import           Control.Effect.ObsReader   (ObsReader)
+import           Control.Effect.EffUnion    (EffUnion)
+import           Control.Effect.Dist        (Dist)
 import           Control.Effect.SampObs     (SampObs (..))
 import qualified Data.Map                   as Map
 import           Data.Maybe                 (fromMaybe)
@@ -31,6 +33,7 @@ import           Env                        (Env, EnvElem (Elem))
 import           PrimDist                   (dist)
 import           Sampler                    (Sampler)
 import           Trace                      (FromSTrace (fromSTrace), STrace)
+import           Model                      (Model, runModel)
 
 -- SampObs Effect Carrier
 newtype SampObsC (m :: * -> *) (k :: *) = SampObsC { runSampObs :: m k }
@@ -43,10 +46,18 @@ instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsC m) wh
       pure $ x <$ ctx
     R other -> alg (runSampObs . hdl) other ctx
 
+x :: Algebra (EffUnion ObsReader env :+: (Dist :+: (SampObs :+: Lift Sampler))) 
+      (EffUnionC ObsReader ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler))))) => Env env -> Int
+x = undefined
+
+y :: Env env -> Int
+y = x
+
 -- | Top-level wrapper for simulating from a model
 simulate :: (FromSTrace env)
   => Env env                                                      -- ^ model environment
-  -> EffUnionC ObsReader ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
+  -> Model env (EffUnion ObsReader env :+: (Dist :+: (SampObs :+: Lift Sampler))) 
+      (EffUnionC ObsReader ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
   -> Sampler (a, Env env)                                         -- ^ (model output, output environment)
 simulate model env = do
   (output, strace) <- runSimulate model env
@@ -55,7 +66,8 @@ simulate model env = do
 -- | Handler for simulating once from a probabilistic program
 runSimulate ::
     Env env                                                     -- ^ model environment
- -> EffUnionC ObsReader ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
+ -> Model env (EffUnion ObsReader env :+: (Dist :+: (SampObs :+: Lift Sampler))) 
+      (EffUnionC ObsReader ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
  -> Sampler (a, STrace)                                         -- ^ (model output, sample trace)
-runSimulate env
-  = runM . runSampObs . runSampTracer . runDist . runEffUnion env (\(Elem vs) -> runObsReader vs)
+runSimulate env m
+  = runM $ runSampObs $ runSampTracer $ runDist $ runEffUnion env (\(Elem vs) m -> runObsReader vs m) $ runModel m

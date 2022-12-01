@@ -25,9 +25,9 @@ import           Data.WorldPeace.Product (Product (..))
 -- >>> Refl :: Elem String '[Double, Char] :~: 'False
 -- Refl
 type family Elem (x :: k) (xs :: [k]) :: Bool where
-    Elem _ '[]       = 'False
-    Elem x (x ': xs) = 'True
-    Elem x (y ': xs) = Elem x xs
+  Elem _ '[]       = 'False
+  Elem x (x ': xs) = 'True
+  Elem x (y ': xs) = Elem x xs
 
 class PElem (a :: k) (as :: [k]) where
   get :: Product f as -> f a

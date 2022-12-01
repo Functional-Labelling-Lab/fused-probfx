@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE RankNTypes #-}
 
 {- | The effect for reading observable variables from a model environment.
 -}
@@ -30,13 +31,18 @@ import           Data.Maybe                 (listToMaybe)
 import           Env                        (Assign (..), Env, ObsVar)
 import           GHC.Base                   (Symbol)
 
-data ObsReaderC (e :: Assign Symbol *) m k where
-    ObsReaderC :: { runObsReaderC :: StateC [a] m k } -> ObsReaderC (x ':= a) m k
-    deriving (Applicative, Monad)
+data ObsReaderC (e :: Assign Symbol *) (m :: * -> *) (k :: *) where
+    ObsReaderC :: { runObsReaderC :: StateC [a] m k } -> ObsReaderC (x := a) m k
 
 instance Functor m => Functor (ObsReaderC e m) where
-    fmap :: (a -> b) -> ObsReaderC e m a -> ObsReaderC e m b
-    fmap f (ObsReaderC runObsReaderC) = ObsReaderC $ fmap f runObsReaderC
+    fmap f (ObsReaderC m) = ObsReaderC $ fmap f m
+
+instance Applicative m => Applicative (ObsReaderC e m) where
+    pure x = ObsReaderC $ pure x
+    (ObsReaderC f) <*> (ObsReaderC x) = ObsReaderC $ f <*> x
+
+instance Monad m => Monad (ObsReaderC e m) where
+    (ObsReaderC m) >>= f = ObsReaderC $ m >>= (\(ObsReaderC m) -> f m)
 
 runObsReader :: Functor m => [a] -> ObsReaderC (x ':= a) m k -> m k
 runObsReader vs (ObsReaderC runObsReaderC) = evalState vs runObsReaderC
@@ -55,4 +61,4 @@ instance (Algebra sig m) => Algebra (ObsReader (x ':= a) :+: sig) (ObsReaderC (x
                     State.put vt
                     pure $ Just v <$ ctx
 
-        R other -> alg (runObsReaderC . hdl) (R other) ctx
+        R other -> alg (\(ObsReaderC m) -> hdl m) (R other) ctx

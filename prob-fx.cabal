@@ -39,6 +39,7 @@ library
                       Control.Effect.Dist,
                       Control.Effect.EffUnion,
                       Data.WorldPeace.Product.Extra,
+                      Data.WorldPeace.Extra,
                       Inference.LW,
                       Inference.MH,
                       Inference.SIM,

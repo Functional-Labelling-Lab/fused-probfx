@@ -8,6 +8,7 @@
 {-# HLINT ignore "Redundant return" #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE RankNTypes #-}
 
 {- | A variety of possible implementations of a [Hidden Markov Model (HMM)](https://en.wikipedia.org/wiki/Hidden_Markov_model).
 -}
@@ -34,13 +35,13 @@ type HMMEnv =
 
 {- | HMM as a loop
 -}
-hmmFor :: (Observable env "y" Int, Observables env '["obs_p", "trans_p"] Double, Has (Model env) sig m)
+hmmFor :: (Monad m, Observable env "y" Int, Observables env '["obs_p", "trans_p"] Double)
   -- | number of HMM nodes
   => Int
   -- | initial HMM latent state
   -> Int
   -- | final HMM latent state
-  -> m Int
+  -> Model env sig m Int
 hmmFor n x = do
   -- Dist transition and observation parameters from prior distributions
   trans_p <- uniform 0 1 #trans_p
@@ -64,7 +65,7 @@ simulateHMM = do
   -- Specify model environment
       env :: Env HMMEnv
       env = #trans_p := [0.5] <:> #obs_p := [0.8] <:> #y := [] <:> nil
-  SIM.simulate env $ hmmFor @HMMEnv @(Model HMMEnv :+: Lift Sampler) n x_0
+  SIM.simulate env $ hmmFor n x_0
 
 -- | Perform likelihood-weighting inference over HMM
 inferLwHMM :: Sampler  [(Env HMMEnv, Double)]
@@ -73,30 +74,30 @@ inferLwHMM   = do
   let x_0 = 0; n = 10
   -- Specify model environment
       env = #trans_p := [] <:> #obs_p := [] <:> #y := [0, 1, 1, 3, 4, 5, 5, 5, 6, 5] <:> nil
-  LW.lw 100 env $ hmmFor @HMMEnv @(Model HMMEnv :+: Lift Sampler) n x_0
+  LW.lw 100 env $ hmmFor n x_0
 
 {- | A modular HMM.
 -}
-transModel :: Has (Model env) sig m => Double -> Int -> m Int
+transModel :: Monad m => Double -> Int -> Model env sig m Int
 transModel transition_p x_prev = do
   dX <- fromEnum <$> bernoulli' transition_p
   return (x_prev + dX)
 
-obsModel :: (Observable env "y" Int, Has (Model env) sig m)
-  => Double -> Int -> m Int
+obsModel :: (Monad m, Observable env "y" Int)
+  => Double -> Int -> Model env sig m Int
 obsModel observation_p x = do
   y <- binomial x observation_p #y
   return y
 
-hmmNode :: (Observable env "y" Int, Has (Model env) sig m)
-  => Double -> Double -> Int -> m Int
+hmmNode :: (Observable env "y" Int)
+  => Double -> Double -> Int -> Model env sig m Int
 hmmNode transition_p observation_p x_prev = do
   x_i <- transModel transition_p x_prev
   y_i <- obsModel observation_p x_i
   return x_i
 
-hmm :: (Observable env "y" Int, Observables env '["obs_p", "trans_p"] Double, Has (Model env) sig m)
-  => Int -> (Int -> m Int)
+hmm :: (Monad m, Observable env "y" Int, Observables env '["obs_p", "trans_p"] Double)
+  => Int -> (Int -> Model env sig m Int)
 hmm n x = do
   trans_p <- uniform 0 1 #trans_p
   obs_p   <- uniform 0 1 #obs_p
@@ -107,9 +108,9 @@ hmm n x = do
 type TransModel m params lat   = params -> lat -> m lat
 type ObsModel m params lat obs = params -> lat -> m obs
 
-hmmGen :: Has (Model env) sig m => m ps1 -> m ps2
-       -> TransModel m ps1 lat -> ObsModel m ps2 lat obs
-       -> Int -> lat -> m lat
+hmmGen :: Monad m => Model env sig m ps1 -> Model env sig m ps2
+       -> TransModel (Model env sig m) ps1 lat -> ObsModel (Model env sig m) ps2 lat obs
+       -> Int -> lat -> Model env sig m lat
 hmmGen transPrior obsPrior transModel obsModel n x_0 = do
   ps1    <- transPrior
   ps2    <- obsPrior

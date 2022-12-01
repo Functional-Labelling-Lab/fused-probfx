@@ -32,12 +32,7 @@ newtype SampTracerC (m :: * -> *) (k :: *) = SampTracerC { runSampTracerC :: Sta
 runSampTracer :: Functor m => SampTracerC m k -> m (k, STrace)
 runSampTracer = fmap swap . runState Map.empty . runSampTracerC
 
-instance (Has SampObs (SampObs :+: sig) m) => Algebra (SampObs :+: sig) (SampTracerC m) where
-    alg :: (Has SampObs (SampObs :+: sig) m, Functor ctx)
-      => Handler ctx n (SampTracerC m)
-      -> (SampObs :+: sig) n a
-      -> ctx ()
-      -> SampTracerC m (ctx a)
+instance (Algebra (SampObs :+: sig) m) => Algebra (SampObs :+: sig) (SampTracerC m) where
     alg hdl sig ctx = SampTracerC $ case sig of
       L d@(SampObs (PrimDistPrf primDist) obs addr) -> do
         -- Perform the sample
