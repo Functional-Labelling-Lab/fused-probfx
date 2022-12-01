@@ -49,6 +49,7 @@ import           Inference.SIM                 as SIM (simulate)
 import           Model                         (Model (..), beta, binomial',
                                                 gamma, poisson)
 import           Sampler                       (Sampler)
+import Control.Effect.Sum (Member)
 
 runWriterM :: forall env w sig m a. Monoid w =>  Model env (Writer w :+: sig) (WriterC w m) a -> Model env sig m (w, a)
 runWriterM model = Model $ runWriter $ runModel @env model
@@ -104,8 +105,8 @@ transIR  gamma popl = do
                 & r .~ (r_0 + dN_IR)
 
 -- | Transition model from S to I, and I to R
-transSIR :: Lookups popl '["s", "i", "r"] Int
-  => TransModel env (Writer [Record popl] :+: sig) (WriterC [Record popl] m) (Double, Double) (Record popl)
+transSIR :: (Lookups popl '["s", "i", "r"] Int, Member (Writer [Record popl]) sig)
+  => TransModel env sig m (Double, Double) (Record popl)
 transSIR (beta, gamma) popl = do
   popl <- (transSI beta >=> transIR gamma) popl
   Model $ tell [popl]  -- a user effect for writing each latent SIR state to a stream [Record popl]

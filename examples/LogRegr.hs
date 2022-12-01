@@ -16,7 +16,7 @@ module LogRegr where
 
 import           Control.Algebra (Has)
 import           Control.Monad   (foldM)
-import           Env             (Assign ((:=)), Env, Observable (get),
+import           Env             (Assign ((:=)), Env, Observable, get,
                                   Observables, nil, (<:>))
 import           Inference.LW    as LW (lw)
 import           Inference.MH    as MH (mhRaw)
@@ -36,27 +36,27 @@ type LogRegrEnv =
 -- | Logistic regression model
 logRegr
  -- Specify the "observable variables" that may later be provided observed values
- :: forall env sig m. (Observable env "y" Bool, Observables env '["m", "b"] Double, Has (Model env) sig m)
+ :: forall env sig m. (Observable env "y" Bool, Observables env '["m", "b"] Double)
  -- | Model inputs
  => [Double]
  -- | Event occurrences
- -> m [Bool]
+ -> Model env sig m [Bool]
 logRegr xs = do
   -- Specify model parameter distributions
   {- Annotating with the observable variable #m lets us later provide observed
      values for m. -}
-  m     <- normal @env 0 5 #m
-  b     <- normal @env 0 1 #b
+  m     <- normal 0 5 #m
+  b     <- normal 0 1 #b
   {- One can use primed variants of distributions which don't require observable
      variables to be provided. This disables being able to later provide
      observed values to that variable. -}
-  sigma <- gamma' @env 1 1
+  sigma <- gamma' 1 1
   -- Specify model output distributions
   foldM (\ys x -> do
                 -- probability of event occurring
-                p <- normal' @env (m * x + b) sigma
+                p <- normal' (m * x + b) sigma
                 -- generate as output whether the event occurs
-                y <- bernoulli @env (sigmoid p) #y
+                y <- bernoulli (sigmoid p) #y
                 return (ys ++ [y])) [] xs
 
 sigmoid :: Double -> Double

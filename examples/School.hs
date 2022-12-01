@@ -17,7 +17,7 @@ module School where
 import           Control.Algebra (Has)
 import           Control.Monad   (replicateM)
 import           Data.Kind       (Constraint)
-import           Env             (Assign ((:=)), Env (ENil), Observable (get),
+import           Env             (Assign ((:=)), nil, Observable, get,
                                   Observables, (<:>))
 import           Inference.MH    as MH (mhRaw)
 import           Model           (Model, deterministic, halfNormal', normal,
@@ -32,19 +32,19 @@ type SchEnv = '[
   ]
 
 -- | School model
-schoolModel :: forall env sig m. (Observables env '["mu", "y"] Double, Observable env "theta" [Double], Has (Model env) sig m)
+schoolModel :: (Observables env '["mu", "y"] Double, Observable env "theta" [Double])
   -- | number of schools
   => Int
   -- | standard errors of each school
   -> [Double]
   -- | effectiveness of each school
-  -> m [Double]
+  -> Model env sig m [Double]
 schoolModel n_schools σs = do
-  μ   <- normal @env 0 10 #mu
-  τ   <- halfNormal' @env 10
-  ηs  <- replicateM n_schools (normal' @env 0 1)
-  θs  <- deterministic @env (map ((μ +) . (τ *)) ηs) #theta
-  ys  <- mapM (\(θ, σ) -> normal @env θ σ #y) (zip θs σs)
+  μ   <- normal 0 10 #mu
+  τ   <- halfNormal' 10
+  ηs  <- replicateM n_schools (normal' 0 1)
+  θs  <- deterministic (map ((μ +) . (τ *)) ηs) #theta
+  ys  <- mapM (\(θ, σ) -> normal θ σ #y) (zip θs σs)
   return θs
 
 -- | Perform MH inference
@@ -52,13 +52,12 @@ mhSchool :: Sampler ([Double], [[Double]])
 mhSchool = do
   -- Specify model inputs
   let n_schools = 8
-      ys        = [28, 8, -3,   7, -1,  1, 18, 12]
+      ys        = [28 :: Double, 8, -3,   7, -1,  1, 18, 12]
       sigmas    = [15, 10, 16, 11,  9, 11, 10, 18]
   -- Specify model environment
-      env :: Env SchEnv
-      env       = #mu := [] <:> #theta := [] <:> #y := ys <:> ENil
+      env       = #mu := ([] :: [Double]) <:> #theta := ([] :: [[Double]]) <:> #y := ys <:> nil
   -- Run MH inference for 10000 iterations
-  env_mh_out <- MH.mhRaw 10000 (schoolModel @SchEnv n_schools sigmas) env ["mu", "theta"]
+  env_mh_out <- MH.mhRaw 10000 (schoolModel n_schools sigmas) env ["mu", "theta"]
   -- Retrieve and returns the trace of model parameters mu and theta
   let mus    = concatMap (get #mu) env_mh_out
       thetas = concatMap (get #theta) env_mh_out

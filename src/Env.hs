@@ -7,13 +7,13 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE TypeOperators          #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# LANGUAGE AllowAmbiguousTypes    #-}
 {-# LANGUAGE ConstraintKinds        #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE QuantifiedConstraints  #-}
 {-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE UndecidableInstances   #-}
-{-# LANGUAGE AllowAmbiguousTypes    #-}
 
 {- | This implements the model environments that users must provide upon running a model;
      such environments assign traces of values to the "observable variables" (random
@@ -39,9 +39,9 @@ module Env
 
 import           Data.Kind                     (Constraint)
 import           Data.Proxy                    (Proxy (Proxy))
+import           Data.WorldPeace.Extra         (IsMember (..))
 import           Data.WorldPeace.Product       (Product (Cons, Nil))
 import           Data.WorldPeace.Product.Extra (Elem)
-import           Data.WorldPeace.Extra         (IsMember(..))
 import           Data.WorldPeace.Union         (Union)
 import           FindElem                      (FindElem (..), Idx (..))
 import           GHC.OverloadedLabels          (IsLabel (..))

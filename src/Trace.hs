@@ -19,19 +19,20 @@ module Trace (
   , LPTrace
   , updateLPTrace) where
 
-import           Data.Map     (Map)
-import qualified Data.Map     as Map
-import           Data.Maybe   (fromJust)
-import           Data.Proxy   (Proxy (..))
-import           Env          (Assign ((:=)), Env, EnvElem(..), ObsVar (..),
-                               nil, varToStr, HasObsVar)
-import           GHC.TypeLits (KnownSymbol)
-import           OpenSum      (OpenSum)
+import           Data.Map                      (Map)
+import qualified Data.Map                      as Map
+import           Data.Maybe                    (fromJust)
+import           Data.Proxy                    (Proxy (..))
+import           Data.WorldPeace               (Product (Cons))
+import           Data.WorldPeace.Product.Extra (Elem)
+import           Env                           (Assign ((:=)), Env,
+                                                EnvElem (..), HasObsVar,
+                                                ObsVar (..), nil, varToStr)
+import           GHC.TypeLits                  (KnownSymbol)
+import           OpenSum                       (OpenSum)
 import qualified OpenSum
-import           PrimDist     (Addr, ErasedPrimDist (..), PrimDist, PrimVal,
-                               logProb)
-import Data.WorldPeace.Product.Extra (Elem)
-import Data.WorldPeace (Product(Cons))
+import           PrimDist                      (Addr, ErasedPrimDist (..),
+                                                PrimDist, PrimVal, logProb)
 
 {- | The type of sample traces, mapping addresses of sample/observe operations
      to their primitive distributions and sampled values.

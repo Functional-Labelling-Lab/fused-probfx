@@ -4,14 +4,14 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE KindSignatures             #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE RankNTypes #-}
 
 {- | The effect for reading observable variables from a model environment.
 -}
@@ -28,10 +28,10 @@ import           Control.Effect.State       (State)
 import qualified Control.Effect.State       as State
 import           Data.Kind                  (Type)
 import           Data.Maybe                 (listToMaybe)
-import           Env                        (Assign, Env, EnvElem(..), ObsVar,
+import           Data.WorldPeace.Extra      (IsMember (productGet, productSet))
+import           Env                        (Assign, Env, EnvElem (..), ObsVar,
                                              Observable, get, set)
 import           GHC.Base                   (Symbol)
-import           Data.WorldPeace.Extra      (IsMember(productGet, productSet))
 
 newtype ObsReaderC (env :: [Assign Symbol *]) m k = ObsReaderC { runObsReaderC :: StateC (Env env) m k }
     deriving (Functor, Applicative, Monad)

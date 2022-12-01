@@ -27,19 +27,21 @@
 module SIRNonModular where
 
 import           Control.Algebra               (Has)
-import           Control.Carrier.Writer.Strict (runWriter, tell)
-import           Control.Effect.Sum            ((:+:))
+import           Control.Carrier.Writer.Strict (WriterC, runWriter, tell)
+import           Control.Effect.Sum            ((:+:), Member)
 import           Control.Effect.Writer         (Writer)
 import           Control.Monad                 ((>=>))
-import           Env                           (Assign ((:=)), Env,
-                                                Observable (get), Observables,
-                                                nil, (<:>))
+import           Env                           (Assign ((:=)), Env, Observable,
+                                                Observables, get, nil, (<:>))
 import           HMM                           (ObsModel, TransModel, hmmGen)
 import           Inference.MH                  as MH (mhRaw)
 import           Inference.SIM                 as SIM (simulate)
-import           Model                         (Model, beta, binomial', gamma,
+import           Model                         (Model (Model, runModel), beta, binomial', gamma,
                                                 poisson)
 import           Sampler                       (Sampler)
+
+runWriterM :: forall env w sig m a. Monoid w =>  Model env (Writer w :+: sig) (WriterC w m) a -> Model env sig m (w, a)
+runWriterM model = Model $ runWriter $ runModel model
 
 {- | SIR model.
 -}
@@ -72,56 +74,56 @@ type Reported = Int
 type ObsParams = Double
 
 -- | Transition model prior
-transPriorSIR :: forall env sig m. (Observables env '["β",  "γ"] Double, Has (Model env) sig m)
-  => m TransParamsSIR
+transPriorSIR :: Observables env '["β",  "γ"] Double
+  => Model env sig m TransParamsSIR
 transPriorSIR = do
-  pBeta  <- gamma @env 2 1 #β
-  pGamma <- gamma @env 1 (1/8) #γ
+  pBeta  <- gamma 2 1 #β
+  pGamma <- gamma 1 (1/8) #γ
   return (TransParamsSIR pBeta pGamma)
 
 -- | Transition model between S and I
-transSI :: forall env sig m. Has (Model env) sig m => TransModel m Double Popl
+transSI :: TransModel env sig m Double Popl
 transSI beta (Popl s i r) = do
   let pop = s + i + r
-  dN_SI <- binomial' @env s (1 - exp ((-beta * fromIntegral i) / fromIntegral pop))
+  dN_SI <- binomial' s (1 - exp ((-beta * fromIntegral i) / fromIntegral pop))
   return $ Popl (s - dN_SI) (i + dN_SI) r
 
 -- | Transition model between I and R
-transIR :: forall env sig m. Has (Model env) sig m => TransModel m Double Popl
+transIR :: TransModel env sig m Double Popl
 transIR gamma (Popl s i r)  = do
-  dN_IR <- binomial' @env i (1 - exp (-gamma))
+  dN_IR <- binomial' i (1 - exp (-gamma))
   return $ Popl s (i - dN_IR) (r + dN_IR)
 
 -- | Transition model between S, I, and R
-transSIR :: forall env sig m. Has (Writer [Popl] :+: Model env) sig m
-  => TransModel m TransParamsSIR Popl
+transSIR :: Member (Writer [Popl]) sig
+  => TransModel env sig m TransParamsSIR Popl
 transSIR (TransParamsSIR beta gamma) sir = do
-  sir' <- (transSI @env beta >=> transIR @env gamma) sir
-  tell [sir']  -- a user effect for writing each latent SIR state to a stream [Popl]
+  sir' <- (transSI beta >=> transIR gamma) sir
+  Model $ tell [sir']  -- a user effect for writing each latent SIR state to a stream [Popl]
   return sir'
 
 -- | Observation model prior
-obsPriorSIR :: forall env sig m. (Observables env '["ρ"] Double, Has (Model env) sig m)
-  => m ObsParams
+obsPriorSIR :: Observables env '["ρ"] Double
+  => Model env sig m ObsParams
 obsPriorSIR = do
-  pRho <- beta @env 2 7 #ρ
+  pRho <- beta 2 7 #ρ
   return pRho
 
 -- | Observation model from I to 𝜉
-obsSIR :: forall env sig m. (Observable env "𝜉" Int, Has (Model env) sig m)
-  => ObsModel m Double Popl Reported
+obsSIR :: Observable env "𝜉" Int
+  => ObsModel env sig m Double Popl Reported
 obsSIR rho (Popl _ i _)  = do
-  i <- poisson @env (rho * fromIntegral i) #𝜉
+  i <- poisson (rho * fromIntegral i) #𝜉
   return i
 
 -- | SIR as HMM
-hmmSIR :: forall env sig m. (Has (Writer [Popl] :+: Model env) sig m, Observable env "𝜉" Int, Observables env '["ρ", "β", "γ"] Double)
-  => Int -> Popl -> m Popl
-hmmSIR = hmmGen @env (transPriorSIR @env) (obsPriorSIR @env) (transSIR @env) (obsSIR @env)
+hmmSIR :: (Member (Writer [Popl]) sig, Observable env "𝜉" Int, Observables env '["ρ", "β", "γ"] Double)
+  => Int -> Popl -> Model env sig m Popl
+hmmSIR = hmmGen transPriorSIR obsPriorSIR transSIR obsSIR
 
 -- | Handle the user effect for writing each SIR state to a stream [Popl]
-hmmSIR' :: forall env sig m. (Observables env '["𝜉"] Int , Observables env '[ "β" , "γ" , "ρ"] Double, Has (Model env) sig m) => Int -> Popl -> m ([Popl], Popl)
-hmmSIR' n = runWriter . hmmSIR @env n
+hmmSIR' :: (Observables env '["𝜉"] Int , Observables env '[ "β" , "γ" , "ρ"] Double) => Int -> Popl -> Model env sig m ([Popl], Popl)
+hmmSIR' n = runWriterM . hmmSIR n
 
 -- | Simulating from SIR model: ([(s, i, r)], [𝜉])
 simulateSIR :: Sampler ([(Int, Int, Int)], [Reported])
@@ -129,10 +131,9 @@ simulateSIR = do
   -- Specify model input of 762 susceptible and 1 infected
   let sir_0      = Popl {s = 762, i = 1, r = 0}
   -- Specify model environment
-      sim_env_in :: Env SIRenv
-      sim_env_in = #β := [0.7] <:> #γ := [0.009] <:> #ρ := [0.3] <:> #𝜉 := [] <:> nil
+      sim_env_in = #β := [0.7 :: Double] <:> #γ := [0.009 :: Double] <:> #ρ := [0.3 :: Double] <:> #𝜉 := ([] :: [Int]) <:> nil
   -- Simulate an epidemic over 100 days
-  ((sir_trace, _), sim_env_out) <- SIM.simulate sim_env_in $ hmmSIR' @SIRenv 100 sir_0
+  ((sir_trace, _), sim_env_out) <- SIM.simulate sim_env_in $ hmmSIR' 100 sir_0
   -- Get the observed infections over 100 days
   let 𝜉s :: [Reported] = get #𝜉 sim_env_out
   -- Get the true SIR values over 100 days
@@ -147,10 +148,9 @@ inferSIR = do
   -- Specify model input of 762 susceptible and 1 infected
   let sir_0           = Popl {s = 762, i = 1, r = 0}
   -- Specify model environment
-      mh_env_in :: Env SIRenv
-      mh_env_in = #β := [] <:> #γ := [0.0085] <:> #ρ := [] <:> #𝜉 := 𝜉s <:> nil
+      mh_env_in = #β := ([] :: [Double]) <:> #γ := [0.0085 :: Double] <:> #ρ := ([] :: [Double]) <:> #𝜉 := 𝜉s <:> nil
   -- Run MH inference over 50000 iterations
-  mhTrace <- MH.mhRaw 5000 (hmmSIR' @SIRenv 100 sir_0) mh_env_in ["β", "ρ"]
+  mhTrace <- MH.mhRaw 5000 (hmmSIR' 100 sir_0) mh_env_in ["β", "ρ"]
   -- Get the sampled values for model parameters ρ and β
   let ρs = concatMap (get #ρ) mhTrace
       βs = concatMap (get #β) mhTrace
@@ -176,30 +176,30 @@ data TransParamsSIRS = TransParamsSIRS {
 }
 
 -- | Transition model prior
-transPriorSIRS :: forall env sig m. (Observables env '["β", "η", "γ"] Double, Has (Model env) sig m)
-  => m TransParamsSIRS
+transPriorSIRS :: Observables env '["β", "η", "γ"] Double
+  => Model env sig m TransParamsSIRS
 transPriorSIRS = do
-  TransParamsSIR pBeta pGamma  <- transPriorSIR @env
-  pEta <- gamma @env 1 (1/8) #η
+  TransParamsSIR pBeta pGamma  <- transPriorSIR
+  pEta <- gamma 1 (1/8) #η
   return (TransParamsSIRS pBeta pGamma pEta)
 
 -- | Transition model between R and S
-transRS :: forall env sig m. (Has (Model env) sig m) => Double -> Popl -> m Popl
+transRS :: Double -> Popl -> Model env sig m Popl
 transRS eta (Popl s i r) = do
-  dN_RS <- binomial' @env r (1 - exp (-eta))
+  dN_RS <- binomial' r (1 - exp (-eta))
   return $ Popl (s + dN_RS) i (r - dN_RS)
 
 -- | Transition model between S, to I, to R, and to S
-transSIRS :: forall env sig m. Has (Writer [Popl] :+: Model env) sig m
-  => TransModel m TransParamsSIRS Popl
+transSIRS :: Member (Writer [Popl]) sig
+  => TransModel env sig m TransParamsSIRS Popl
 transSIRS (TransParamsSIRS beta gamma eta) sir = do
-  sir' <- (transSI @env beta >=> transIR @env gamma >=> transRS @env eta) sir
-  tell [sir']
+  sir' <- (transSI beta >=> transIR gamma >=> transRS eta) sir
+  Model $ tell [sir']
   return sir'
 
 -- | SIRS as HMM
-hmmSIRS :: forall env sig m. (Observables env '["𝜉"] Int, Observables env '["β", "η", "γ", "ρ"] Double, Has (Model env) sig m) => Int -> Popl -> m ([Popl], Popl)
-hmmSIRS n = runWriter . hmmGen @env (transPriorSIRS @env) (obsPriorSIR @env) (transSIRS @env) (obsSIR @env) n
+hmmSIRS :: (Observables env '["𝜉"] Int, Observables env '["β", "η", "γ", "ρ"] Double) => Int -> Popl -> Model env sig m ([Popl], Popl)
+hmmSIRS n = runWriterM . hmmGen transPriorSIRS obsPriorSIR transSIRS obsSIR n
 
 -- | Simulate from SIRS model: ([(s, i, r)], [𝜉])
 simulateSIRS :: Sampler ([(Int, Int, Int)], [Reported])
@@ -207,10 +207,9 @@ simulateSIRS = do
   -- Specify model input of 762 susceptible and 1 infected
   let sir_0      = Popl {s = 762, i = 1, r = 0}
   -- Specify model environment
-      sim_env_in :: Env SIRSenv
-      sim_env_in = #β := [0.7] <:> #γ := [0.009] <:> #η := [0.05] <:> #ρ := [0.3] <:> #𝜉 := [] <:> nil
+      sim_env_in = #β := [0.7 :: Double] <:> #γ := [0.009 :: Double] <:> #η := [0.05 :: Double] <:> #ρ := [0.3 :: Double] <:> #𝜉 := ([] :: [Int]) <:> nil
   -- Simulate an epidemic over 100 days
-  ((sir_trace, _), sim_env_out) <- SIM.simulate sim_env_in $ hmmSIRS @SIRSenv 100 sir_0
+  ((sir_trace, _), sim_env_out) <- SIM.simulate sim_env_in $ hmmSIRS 100 sir_0
   -- Get the observed infections over 100 days
   let 𝜉s :: [Reported] = get #𝜉 sim_env_out
   -- Get the true SIR values over 100 days
@@ -247,58 +246,58 @@ data PoplV = PoplV {
 } deriving Show
 
 -- | Transition from S to I
-transSI' :: forall env sig m. (Has (Model env) sig m) => TransModel m Double PoplV
+transSI' :: TransModel env sig m Double PoplV
 transSI' beta (PoplV s i r v) = do
   let pop = s + i + r + v
-  dN_SI <- binomial' @env s (1 - exp ((-beta * fromIntegral i) / fromIntegral pop))
+  dN_SI <- binomial' s (1 - exp ((-beta * fromIntegral i) / fromIntegral pop))
   return $ PoplV (s - dN_SI) (i + dN_SI) r v
 
 -- | Transition from I to R
-transIR' :: forall env sig m. (Has (Model env) sig m) => TransModel m Double PoplV
+transIR' :: TransModel env sig m Double PoplV
 transIR' gamma (PoplV s i r v)  = do
-  dN_IR <- binomial' @env i (1 - exp (-gamma))
+  dN_IR <- binomial' i (1 - exp (-gamma))
   return $ PoplV s (i - dN_IR) (r + dN_IR) v
 
 -- | Transition from R to S
-transRS' :: forall env sig m. (Has (Model env) sig m) => TransModel m Double PoplV
+transRS' :: TransModel env sig m Double PoplV
 transRS' eta (PoplV s i r v) = do
-  dN_RS <- binomial' @env r (1 - exp (-eta))
+  dN_RS <- binomial' r (1 - exp (-eta))
   return $ PoplV (s + dN_RS) i (r - dN_RS) v
 
 -- | Transition from S to V
-transSV' :: forall env sig m. (Has (Model env) sig m) => TransModel m Double PoplV
+transSV' :: TransModel env sig m Double PoplV
 transSV' omega (PoplV s i r v)  = do
-  dN_SV <- binomial' @env s (1 - exp (-omega))
+  dN_SV <- binomial' s (1 - exp (-omega))
   return $  PoplV (s - dN_SV) i r (v + dN_SV )
 
 -- | Transition between S to I, I to R, R to S, and S to V
-transSIRSV :: forall env sig m. Has (Writer [PoplV] :+: Model env) sig m => TransModel m TransParamsSIRSV PoplV
+transSIRSV :: Member (Writer [PoplV]) sig => TransModel env sig m TransParamsSIRSV PoplV
 transSIRSV (TransParamsSIRSV beta gamma omega eta) sirv = do
-  sirv' <- (transSI' @env beta  >=>
-            transIR' @env gamma >=>
-            transRS' @env eta   >=>
-            transSV' @env omega) sirv
-  tell [sirv']
+  sirv' <- (transSI' beta  >=>
+            transIR' gamma >=>
+            transRS' eta   >=>
+            transSV' omega) sirv
+  Model $ tell [sirv']
   return sirv'
 
 -- | Transition model prior
-transPriorSIRSV :: forall env sig m. (Observables env '["β", "γ", "ω", "η"] Double, Has (Model env) sig m)
-  => m TransParamsSIRSV
+transPriorSIRSV :: Observables env '["β", "γ", "ω", "η"] Double
+  => Model env sig m TransParamsSIRSV
 transPriorSIRSV  = do
-  TransParamsSIRS pBeta pGamma pEta <- transPriorSIRS @env
-  pOmega <- gamma @env 1 (1/16) #ω
+  TransParamsSIRS pBeta pGamma pEta <- transPriorSIRS
+  pOmega <- gamma 1 (1/16) #ω
   return (TransParamsSIRSV pBeta pGamma pEta pOmega)
 
 -- | Observation model
-obsSIRSV :: forall env sig m. (Observable env "𝜉" Int, Has (Model env) sig m)
-  => ObsModel m Double PoplV Reported
+obsSIRSV :: Observable env "𝜉" Int
+  => ObsModel env sig m Double PoplV Reported
 obsSIRSV rho (PoplV _ i _ v)  = do
-  i <- poisson @env (rho * fromIntegral i) #𝜉
+  i <- poisson (rho * fromIntegral i) #𝜉
   return i
 
 -- | SIRSV as HMM
-hmmSIRSV ::  forall env sig m. (Observables env '["𝜉"] Int, Observables env '["β", "γ", "η", "ω", "ρ"] Double, Has (Model env) sig m) => Int -> PoplV -> m ([PoplV], PoplV)
-hmmSIRSV n = runWriter . hmmGen @env (transPriorSIRSV @env) (obsPriorSIR @env) (transSIRSV @env) (obsSIRSV @env) n
+hmmSIRSV ::  (Observables env '["𝜉"] Int, Observables env '["β", "γ", "η", "ω", "ρ"] Double) => Int -> PoplV -> Model env sig m ([PoplV], PoplV)
+hmmSIRSV n = runWriterM . hmmGen transPriorSIRSV obsPriorSIR transSIRSV obsSIRSV n
 
 -- | Simulate from SIRSV model : ([(s, i, r, v)], [𝜉])
 simulateSIRSV :: Sampler ([(Int, Int, Int, Int)], [Reported])
@@ -306,8 +305,7 @@ simulateSIRSV = do
   -- Specify model input of 762 susceptible and 1 infected
   let sirv_0      = PoplV {s' = 762, i' = 1, r' = 0, v' = 0}
   -- Specify model environment
-      sim_env_in :: Env SIRSVenv
-      sim_env_in = #β := [0.7] <:> #γ := [0.009] <:> #η := [0.05] <:> #ω := [0.02] <:> #ρ := [0.3] <:> #𝜉 := [] <:> nil
+      sim_env_in = #β := [0.7 :: Double] <:> #γ := [0.009 :: Double] <:> #η := [0.05 :: Double] <:> #ω := [0.02 :: Double] <:> #ρ := [0.3 :: Double] <:> #𝜉 := ([] :: [Int]) <:> nil
   -- Simulate an epidemic over 100 days
   ((sirv_trace, _), sim_env_out) <- SIM.simulate sim_env_in $ hmmSIRSV @SIRSVenv 100 sirv_0
   -- Get the observed infections over 100 days
