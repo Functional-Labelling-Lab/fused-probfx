@@ -36,6 +36,8 @@ library
                       Control.Effect.ObsReader,
                       Control.Effect.SampObs,
                       Control.Effect.Dist,
+                      Data.WorldPeace.Extra,
+                      Data.WorldPeace.Product.Extra,
                       Inference.LW,
                       Inference.MH,
                       Inference.SIM,
@@ -73,6 +75,7 @@ library
                       statistics                    >= 0.16.1 && < 0.17,
                       criterion                     >= 1.5.13 && < 1.6,
                       split                         >= 0.2.3 && < 0.3,
+                      world-peace,
                       fused-effects
 
   -- Directories containing source files.

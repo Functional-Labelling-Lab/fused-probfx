@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -20,7 +21,7 @@ import           Env             (Assign, Env, ObsVar, Observable (..))
 import           GHC.Types       (Symbol)
 
 -- | The effect for reading observed values from a model environment @env@
-data ObsReader (env :: [Assign Symbol Type]) (m :: Type -> Type) (k :: Type) where
+data ObsReader (env :: [Assign Symbol *]) (m :: Type -> Type) (k :: Type) where
   -- | Given the observable variable @x@ is assigned a list of type @[a]@ in @env@, attempt to retrieve its head value.
   Ask :: Observable env x a
     => ObsVar x                   -- ^ variable @x@ to read from

@@ -21,11 +21,14 @@ import           Control.Carrier.Dist       (DistC, runDist)
 import           Control.Carrier.Lift       (LiftC, runM)
 import           Control.Carrier.ObsReader  (ObsReaderC, runObsReader)
 import           Control.Carrier.SampTracer (SampTracerC, runSampTracer)
+import           Control.Effect.Dist        (Dist)
 import           Control.Effect.Lift        (Lift, sendM)
+import           Control.Effect.ObsReader   (ObsReader)
 import           Control.Effect.SampObs     (SampObs (..))
 import qualified Data.Map                   as Map
 import           Data.Maybe                 (fromMaybe)
 import           Env                        (Env)
+import           Model                      (Model (..))
 import           PrimDist                   (dist)
 import           Sampler                    (Sampler)
 import           Trace                      (FromSTrace (fromSTrace), STrace)
@@ -44,7 +47,8 @@ instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsC m) wh
 -- | Top-level wrapper for simulating from a model
 simulate :: (FromSTrace env)
   => Env env                                                     -- ^ model environment
-  -> ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
+  -> Model env (ObsReader env :+: (Dist :+: (SampObs :+: Lift Sampler)))
+     (ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
   -> Sampler (a, Env env)                                        -- ^ (model output, output environment)
 simulate model env = do
   (output, strace) <- runSimulate model env
@@ -52,8 +56,9 @@ simulate model env = do
 
 -- | Handler for simulating once from a probabilistic program
 runSimulate ::
-    Env env                                                     -- ^ model environment
- -> ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
- -> Sampler (a, STrace)                                         -- ^ (model output, sample trace)
-runSimulate env
-  = runM . runSampObs . runSampTracer . runDist . runObsReader env
+     Env env                                                     -- ^ model environment
+  -> Model env (ObsReader env :+: (Dist :+: (SampObs :+: Lift Sampler)))
+     (ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler))))) a -- ^ model
+  -> Sampler (a, STrace)                                         -- ^ (model output, sample trace)
+runSimulate env model
+  = runM $ runSampObs $ runSampTracer $ runDist $ runObsReader env $ runModel model

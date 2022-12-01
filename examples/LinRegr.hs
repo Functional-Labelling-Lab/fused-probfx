@@ -5,9 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant return" #-}
-{-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE MonoLocalBinds        #-}
-{-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeOperators         #-}
 
 {- | A linear regression model, assuming a linear relationship between x and y co-ordinates.
@@ -15,36 +13,35 @@
 
 module LinRegr where
 
-import           Control.Algebra (Has)
-import           Data.Kind       (Constraint)
-import           Env             (Assign ((:=)), Env, Observable (get),
-                                  Observables, nil, (<:>))
-import           Inference.LW    as LW (lw)
-import           Inference.MH    as MH (mhRaw)
-import           Inference.SIM   as SIM (simulate)
-import           Model           (Model, normal, uniform)
-import           Sampler         (Sampler)
+import           Data.Kind     (Constraint)
+import           Env           (Assign ((:=)), Observable, Observables, get,
+                                nil, (<:>))
+import           Inference.LW  as LW (lw)
+import           Inference.MH  as MH (mhRaw)
+import           Inference.SIM as SIM (simulate)
+import           Model         (Model, normal, uniform)
+import           Sampler       (Sampler)
 
 -- | Linear regression environment
 type LinRegrEnv =
     '[  "m" ':= Double, -- ^ gradient
-        "c" ':= Double, -- ^ intercept
         "σ" ':= Double, -- ^ noise
+        "c" ':= Double, -- ^ intercept
         "y" ':= Double  -- ^ output
      ]
 
 -- | Linear regression model
-linRegr :: forall env sig m. (Observables env ["y", "m", "c", "σ"] Double, Has (Model env) sig m)
+linRegr :: Observables env ["y", "m", "c", "σ"] Double
   -- x co-ordinate
   => Double
   -- y co-ordinate
-  -> m Double
+  -> Model env sig m Double
 linRegr x = do
-  -- Dist prior
-  m <- normal @env 0 3 #m
-  c <- normal @env 0 5 #c
-  σ <- uniform @env 1 3 #σ
-  y <- normal @env (m * x + c) σ #y
+  -- Draw prior
+  m <- normal 0 3 #m
+  c <- normal 0 5 #c
+  σ <- uniform 1 3 #σ
+  y <- normal (m * x + c) σ #y
   return y
 
 -- | Simulate from linear regression
@@ -53,10 +50,9 @@ simulateLinRegr = do
   -- Specify model inputs
   let xs  = [0 .. 100]
   -- Specify model environment
-      env :: Env LinRegrEnv
-      env = (#m := [3.0]) <:> (#c := [0.0]) <:> (#σ := [1.0]) <:> (#y := []) <:> nil
+      env = (#m := [3.0 :: Double]) <:> (#c := [0 :: Double]) <:> (#σ := [1 :: Double]) <:> (#y := ([] :: [Double])) <:> nil
   -- Simulate linear regression for each input x
-  ys_envs <- mapM (SIM.simulate env . linRegr @LinRegrEnv) xs
+  ys_envs <- mapM (SIM.simulate env . linRegr) xs
   let ys = map fst ys_envs
   return (zip xs ys)
 
@@ -66,10 +62,9 @@ inferLwLinRegr = do
   -- Specify model inputs
   let xs  = [0 .. 100]
   -- Specify model environments and pair with model input
-      x_envs :: [(Double, Env LinRegrEnv)]
-      x_envs = [(x, env) | x <- xs, let env = (#m := []) <:> (#c := []) <:> (#σ := []) <:> (#y := [3*x]) <:> nil]
+      x_envs = [(x, env) | x <- xs, let env = (#m := ([] :: [Double])) <:> (#c := ([] :: [Double])) <:> (#σ := ([] :: [Double])) <:> (#y := [3*x]) <:> nil]
   -- Run LW for 20 iterations on each pair of model input and environment
-  lwTrace <- mapM (\(x, env) -> LW.lw 20 env $ linRegr @LinRegrEnv x) x_envs
+  lwTrace <- mapM (\(x, env) -> LW.lw 20 env (linRegr x)) x_envs
    -- Get the sampled values of mu and their likelihood-weighting
   let (env_outs, ps) = unzip $ concat lwTrace
       mus = concatMap (get #m) env_outs
@@ -81,10 +76,9 @@ inferMhLinRegr = do
   -- Specify model inputs
   let xs  = [0 .. 100]
   -- Specify model environments and pair with model input
-      x_envs :: [(Double, Env LinRegrEnv)]
-      x_envs = [(x, env) | x <- xs, let env = (#m := []) <:> (#c := []) <:> (#σ := []) <:> (#y := [3*x]) <:> nil]
+      x_envs = [(x, env) | x <- xs, let env = (#m := ([] :: [Double])) <:> (#c := ([] :: [Double])) <:> (#σ := ([] :: [Double])) <:> (#y := [3*x]) <:> nil]
   -- Run MH for 100 iterations on each pair of model input and environment
-  mhTrace <-  concat <$> mapM (\(x, env) -> MH.mhRaw 100 (linRegr @LinRegrEnv x) env ["m", "c"]) x_envs
+  mhTrace <- concat <$> mapM (\(x, env) -> MH.mhRaw 100 (linRegr x) env ["m", "c"]) x_envs
   -- Get the sampled values of mu
   let mus = concatMap (get #m) mhTrace
   return mus

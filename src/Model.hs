@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes     #-}
 {-# LANGUAGE ConstraintKinds         #-}
 {-# LANGUAGE DataKinds               #-}
+{-# LANGUAGE DeriveFunctor           #-}
 {-# LANGUAGE FlexibleContexts        #-}
 {-# LANGUAGE FlexibleInstances       #-}
 {-# LANGUAGE MonoLocalBinds          #-}
@@ -17,7 +18,7 @@
 -}
 
 module Model (
-    Model
+    Model(..)
     -- * Distribution smart constructors
     -- $Smart-Constructors
   , bernoulli
@@ -51,20 +52,31 @@ module Model (
   )
   where
 
-import           Control.Algebra           (Has, send)
+import           Control.Algebra           (Algebra, Has, send)
 import           Control.Carrier.Dist      (DistC, runDist)
 import           Control.Carrier.ObsReader (ObsReaderC, runObsReader)
 import           Control.Effect.Dist       (Dist (Dist), dist)
+import           Control.Effect.Labelled   (Algebra (alg))
 import           Control.Effect.Lift       (Lift (..))
 import           Control.Effect.ObsReader  (ObsReader, ask)
-import           Control.Effect.Sum        ((:+:))
+import           Control.Effect.Sum        (Member, Members, (:+:))
 import           Control.Monad             (ap)
 import           Control.Monad.Trans.Class (MonadTrans (lift))
 import           Env                       (Env, ObsVar, Observable, varToStr)
 import qualified OpenSum
 import           PrimDist                  (PrimDist (..), PrimVal)
 
-type Model env = ObsReader env :+: Dist
+newtype Model env sig m a = Model {runModel :: (Member (ObsReader env) sig, Member Dist sig, Algebra sig m) => m a}
+
+instance Functor (Model env sig m) where
+  fmap f (Model x) = Model $ fmap f x
+
+instance Applicative (Model env sig m) where
+  pure x = Model $ pure x
+  (Model f) <*> (Model x) = Model $ f <*> x
+
+instance Monad (Model env sig m) where
+  (Model m) >>= f = Model $ m >>= (\m -> let (Model m') = f m in m')
 
 {- $Smart-Constructors
 
@@ -89,178 +101,178 @@ type Model env = ObsReader env :+: Dist
     @
 -}
 
-envDist :: forall env sig m a x. (Observable env x a, Has (ObsReader env :+: Dist) sig m)
+envDist :: forall env x a sig m. Observable env x a
   => PrimDist a
   -> ObsVar x
-  -> m a
+  -> Model env sig m a
 envDist primDist field = do
   let tag = Just $ varToStr field
-  maybe_y <- ask @env field
-  dist primDist maybe_y tag
+  maybe_y <- Model $ ask @env field
+  Model $ dist primDist maybe_y tag
 
-deterministic :: forall env sig m a x. (Eq a, Show a, OpenSum.Member a PrimVal, Observable env x a, Has (ObsReader env :+: Dist) sig m)
+deterministic :: (Eq a, Show a, OpenSum.Member a PrimVal, Observable env x a)
   => a
   -> ObsVar x
-  -> m a
-deterministic x = envDist @env (DeterministicDist x)
+  -> Model env sig m a
+deterministic x = envDist (DeterministicDist x)
 
-deterministic' :: (Eq a, Show a, OpenSum.Member a PrimVal, Has (ObsReader env :+: Dist) sig m)
+deterministic' :: (Eq a, Show a, OpenSum.Member a PrimVal)
   => a -- ^ value to be deterministically generated
-  -> m a
+  -> Model env sig m a
 deterministic' x =
-  dist (DeterministicDist x) Nothing Nothing
+  Model $ dist (DeterministicDist x) Nothing Nothing
 
-dirichlet :: forall env sig m x. (Observable env x [Double], Has (ObsReader env :+: Dist) sig m)
+dirichlet :: Observable env x [Double]
   => [Double]
   -> ObsVar x
-  -> m [Double]
-dirichlet xs = envDist @env (DirichletDist xs)
+  -> Model env sig m [Double]
+dirichlet xs = envDist (DirichletDist xs)
 
-dirichlet' :: (Has (ObsReader env :+: Dist) sig m)
-  => [Double] -- ^ concentration parameters
-  -> m [Double]
-dirichlet' xs = dist (DirichletDist xs) Nothing Nothing
+dirichlet' ::
+     [Double] -- ^ concentration parameters
+  -> Model env sig m [Double]
+dirichlet' xs = Model $ dist (DirichletDist xs) Nothing Nothing
 
-discrete :: forall env sig m x. (Observable env x Int, Has (ObsReader env :+: Dist) sig m)
+discrete :: Observable env x Int
   => [Double]
   -> ObsVar x
-  -> m Int
-discrete ps = envDist @env (DiscreteDist ps)
+  -> Model env sig m Int
+discrete ps = envDist (DiscreteDist ps)
 
-discrete' :: (Has (ObsReader env :+: Dist) sig m)
-  => [Double]         -- ^ list of @n@ probabilities
-  -> m Int -- ^ integer index from @0@ to @n - 1@
-discrete' ps = dist (DiscreteDist ps) Nothing Nothing
+discrete' ::
+     [Double]         -- ^ list of @n@ probabilities
+  -> Model env sig m Int -- ^ integer index from @0@ to @n - 1@
+discrete' ps = Model $ dist (DiscreteDist ps) Nothing Nothing
 
-categorical :: forall env sig m x a. (Eq a, Show a, OpenSum.Member a PrimVal, Observable env x a, Has (ObsReader env :+: Dist) sig m)
+categorical :: (Eq a, Show a, OpenSum.Member a PrimVal, Observable env x a)
   => [(a, Double)]
   -> ObsVar x
-  -> m a
-categorical xs = envDist @env (CategoricalDist xs)
+  -> Model env sig m a
+categorical xs = envDist (CategoricalDist xs)
 
-categorical' :: (Eq a, Show a, OpenSum.Member a PrimVal, Has (ObsReader env :+: Dist) sig m)
+categorical' :: (Eq a, Show a, OpenSum.Member a PrimVal)
   => [(a, Double)] -- ^ primitive values and their probabilities
-  -> m a
-categorical' xs = dist (CategoricalDist xs) Nothing Nothing
+  -> Model env sig m a
+categorical' xs = Model $ dist (CategoricalDist xs) Nothing Nothing
 
-normal :: forall env sig m x. (Observable env x Double, Has (ObsReader env :+: Dist) sig m)
+normal :: Observable env x Double
   => Double
   -> Double
   -> ObsVar x
-  -> m Double
-normal mu sigma = envDist @env (NormalDist mu sigma)
+  -> Model env sig m Double
+normal mu sigma = envDist (NormalDist mu sigma)
 
-normal' :: (Has (ObsReader env :+: Dist) sig m)
-  => Double -- ^ mean
+normal' ::
+     Double -- ^ mean
   -> Double -- ^ standard deviation
-  -> m Double
-normal' mu sigma = dist (NormalDist mu sigma) Nothing Nothing
+  -> Model env sig m Double
+normal' mu sigma = Model $ dist (NormalDist mu sigma) Nothing Nothing
 
-halfNormal :: forall env sig m x. (Observable env x Double, Has (ObsReader env :+: Dist) sig m)
+halfNormal :: Observable env x Double
   => Double
   -> ObsVar x
-  -> m Double
-halfNormal sigma = envDist @env (HalfNormalDist sigma)
+  -> Model env sig m Double
+halfNormal sigma = envDist (HalfNormalDist sigma)
 
-halfNormal' :: (Has (ObsReader env :+: Dist) sig m)
-  => Double -- ^ standard deviation
-  -> m Double
-halfNormal' sigma = dist (HalfNormalDist sigma) Nothing Nothing
+halfNormal' ::
+     Double -- ^ standard deviation
+  -> Model env sig m Double
+halfNormal' sigma = Model $ dist (HalfNormalDist sigma) Nothing Nothing
 
-cauchy :: forall env sig m x. (Observable env x Double, Has (ObsReader env :+: Dist) sig m)
+cauchy :: Observable env x Double
   => Double
   -> Double
   -> ObsVar x
-  -> m Double
-cauchy mu sigma = envDist @env (CauchyDist mu sigma)
+  -> Model env sig m Double
+cauchy mu sigma = envDist (CauchyDist mu sigma)
 
-cauchy' :: (Has (ObsReader env :+: Dist) sig m)
-  => Double -- ^ location
+cauchy' ::
+     Double -- ^ location
   -> Double -- ^ scale
-  -> m Double
-cauchy' mu sigma = dist (CauchyDist mu sigma) Nothing Nothing
+  -> Model env sig m Double
+cauchy' mu sigma = Model $ dist (CauchyDist mu sigma) Nothing Nothing
 
-halfCauchy :: forall env sig m x. (Observable env x Double, Has (ObsReader env :+: Dist) sig m)
+halfCauchy :: Observable env x Double
   => Double
   -> ObsVar x
-  -> m Double
-halfCauchy sigma = envDist @env (HalfCauchyDist sigma)
+  -> Model env sig m Double
+halfCauchy sigma = envDist (HalfCauchyDist sigma)
 
-halfCauchy' :: (Has (ObsReader env :+: Dist) sig m)
-  => Double -- ^ scale
-  -> m Double
-halfCauchy' sigma = dist (HalfCauchyDist sigma) Nothing Nothing
+halfCauchy' ::
+     Double -- ^ scale
+  -> Model env sig m Double
+halfCauchy' sigma = Model $ dist (HalfCauchyDist sigma) Nothing Nothing
 
-bernoulli :: forall env sig m x. (Observable env x Bool, Has (ObsReader env :+: Dist) sig m)
+bernoulli :: Observable env x Bool
   => Double
   -> ObsVar x
-  -> m Bool
-bernoulli p = envDist @env (BernoulliDist p)
+  -> Model env sig m Bool
+bernoulli p = envDist (BernoulliDist p)
 
-bernoulli' :: (Has (ObsReader env :+: Dist) sig m)
-  => Double -- ^ probability of @True@
-  -> m Bool
-bernoulli' p = dist (BernoulliDist p) Nothing Nothing
+bernoulli' ::
+     Double -- ^ probability of @True@
+  -> Model env sig m Bool
+bernoulli' p = Model $ dist (BernoulliDist p) Nothing Nothing
 
-beta :: forall env sig m x. (Observable env x Double, Has (ObsReader env :+: Dist) sig m)
+beta :: Observable env x Double
   => Double
   -> Double
   -> ObsVar x
-  -> m Double
-beta α β = envDist @env (BetaDist α β)
+  -> Model env sig m Double
+beta α β = envDist (BetaDist α β)
 
-beta' :: (Has (ObsReader env :+: Dist) sig m)
-  => Double -- ^ shape 1 (α)
+beta' ::
+     Double -- ^ shape 1 (α)
   -> Double -- ^ shape 2 (β)
-  -> m Double
-beta' α β = dist (BetaDist α β) Nothing Nothing
+  -> Model env sig m Double
+beta' α β = Model $ dist (BetaDist α β) Nothing Nothing
 
-binomial :: forall env sig m x. (Observable env x Int, Has (ObsReader env :+: Dist) sig m)
+binomial :: Observable env x Int
   => Int
   -> Double
   -> ObsVar x
-  -> m Int
-binomial n p = envDist @env (BinomialDist n p)
+  -> Model env sig m Int
+binomial n p = envDist (BinomialDist n p)
 
-binomial' :: (Has (ObsReader env :+: Dist) sig m)
-  => Int              -- ^ number of trials
+binomial' ::
+     Int              -- ^ number of trials
   -> Double           -- ^ probability of successful trial
-  -> m Int -- ^ number of successful trials
-binomial' n p = dist (BinomialDist n p) Nothing Nothing
+  -> Model env sig m Int -- ^ number of successful trials
+binomial' n p = Model $ dist (BinomialDist n p) Nothing Nothing
 
-gamma :: forall env sig m x. (Observable env x Double, Has (ObsReader env :+: Dist) sig m)
+gamma :: Observable env x Double
   => Double
   -> Double
   -> ObsVar x
-  -> m Double
-gamma k θ = envDist @env (GammaDist k θ)
+  -> Model env sig m Double
+gamma k θ = envDist (GammaDist k θ)
 
-gamma' :: (Has (ObsReader env :+: Dist) sig m)
-  => Double -- ^ shape (k)
+gamma' ::
+     Double -- ^ shape (k)
   -> Double -- ^ scale (θ)
-  -> m Double
-gamma' k θ = dist (GammaDist k θ) Nothing Nothing
+  -> Model env sig m Double
+gamma' k θ = Model $ dist (GammaDist k θ) Nothing Nothing
 
-uniform :: forall env sig m x. (Observable env x Double, Has (ObsReader env :+: Dist) sig m)
+uniform :: Observable env x Double
   => Double
   -> Double
   -> ObsVar x
-  -> m Double
-uniform min max = envDist @env (UniformDist min max)
+  -> Model env sig m Double
+uniform min max = envDist (UniformDist min max)
 
-uniform' :: (Has (ObsReader env :+: Dist) sig m)
-  => Double -- ^ lower-bound
+uniform' ::
+     Double -- ^ lower-bound
   -> Double -- ^ upper-bound
-  -> m Double
-uniform' min max = dist (UniformDist min max) Nothing Nothing
+  -> Model env sig m Double
+uniform' min max = Model $ dist (UniformDist min max) Nothing Nothing
 
-poisson :: forall env sig m x. (Observable env x Int, Has (ObsReader env :+: Dist) sig m)
+poisson :: Observable env x Int
   => Double
   -> ObsVar x
-  -> m Int
-poisson λ = envDist @env (PoissonDist λ)
+  -> Model env sig m Int
+poisson λ = envDist (PoissonDist λ)
 
-poisson' :: (Has (ObsReader env :+: Dist) sig m)
-  => Double           -- ^ rate (λ)
-  -> m Int -- ^ number of events
-poisson' λ = dist (PoissonDist λ) Nothing Nothing
+poisson' ::
+     Double           -- ^ rate (λ)
+  -> Model env sig m Int -- ^ number of events
+poisson' λ = Model $ dist (PoissonDist λ) Nothing Nothing

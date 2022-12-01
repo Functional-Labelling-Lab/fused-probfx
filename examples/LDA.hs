@@ -22,15 +22,14 @@
 
 module LDA where
 
-import           Control.Algebra (Has)
-import           Control.Monad   (replicateM)
-import           Data.Kind       (Constraint)
-import           Env             (Assign ((:=)), Env, Observable (get),
-                                  Observables, nil, (<:>))
-import           Inference.MH    as MH (mhRaw)
-import           Inference.SIM   as SIM (simulate)
-import           Model           (Model, categorical, dirichlet, discrete')
-import           Sampler         (Sampler)
+import           Control.Monad (replicateM)
+import           Data.Kind     (Constraint)
+import           Env           (Assign ((:=)), Env, Observable, Observables,
+                                get, nil, (<:>))
+import           Inference.MH  as MH (mhRaw)
+import           Inference.SIM as SIM (simulate)
+import           Model         (Model, categorical, dirichlet, discrete')
+import           Sampler       (Sampler)
 
 {- | An LDA environment.
 
@@ -51,36 +50,36 @@ type TopicEnv =
    ]
 
 -- | Prior distribution for topics in a document
-docTopicPrior :: forall env sig m. (Observable env "θ" [Double], Has (Model env) sig m)
+docTopicPrior :: Observable env "θ" [Double]
   -- | number of topics
   => Int
   -- | probability of each topic
-  -> m [Double]
-docTopicPrior n_topics = dirichlet @env (replicate n_topics 1) #θ
+  -> Model env sig m [Double]
+docTopicPrior n_topics = dirichlet (replicate n_topics 1) #θ
 
 -- | Prior distribution for words in a topic
-topicWordPrior :: forall env sig m. (Observable env "φ" [Double], Has (Model env) sig m)
+topicWordPrior :: Observable env "φ" [Double]
   -- | vocabulary
   => [String]
   -- | probability of each word
-  -> m [Double]
+  -> Model env sig m [Double]
 topicWordPrior vocab
-  = dirichlet @env (replicate (length vocab) 1) #φ
+  = dirichlet (replicate (length vocab) 1) #φ
 
 -- | A distribution generating words according to their probabilities
-wordDist :: forall env sig m. (Observable env "w" String, Has (Model env) sig m)
+wordDist :: Observable env "w" String
   -- | vocabulary
   => [String]
   -- | probability of each word
   -> [Double]
   -- | generated word
-  -> m String
+  -> Model env sig m String
 wordDist vocab ps =
-  categorical @env (zip vocab ps) #w
+  categorical (zip vocab ps) #w
 
 -- | Distribution over the topics in a document, over the distribution of words in a topic
-topicModel :: forall env sig m. (Observables env '["φ", "θ"] [Double],
-               Observable env "w" String, Has (Model env) sig m)
+topicModel :: (Observables env '["φ", "θ"] [Double],
+               Observable env "w" String)
   -- | vocabulary
   => [String]
   -- | number of topics
@@ -88,19 +87,19 @@ topicModel :: forall env sig m. (Observables env '["φ", "θ"] [Double],
   -- | number of words
   -> Int
   -- | generated words
-  -> m [String]
+  -> Model env sig m [String]
 topicModel vocab n_topics n_words = do
   -- Generate distribution over words for each topic
-  topic_word_ps <- replicateM n_topics $ topicWordPrior @env vocab
+  topic_word_ps <- replicateM n_topics $ topicWordPrior vocab
   -- Generate distribution over topics for a given document
-  doc_topic_ps  <- docTopicPrior @env n_topics
-  replicateM n_words (do  z <- discrete' @env doc_topic_ps
+  doc_topic_ps  <- docTopicPrior n_topics
+  replicateM n_words (do  z <- discrete' doc_topic_ps
                           let word_ps = topic_word_ps !! z
-                          wordDist @env vocab word_ps)
+                          wordDist vocab word_ps)
 
 -- | Topic distribution over many topics
-topicModels :: forall env sig m. (Observables env '["φ", "θ"] [Double],
-               Observable env "w" String, Has (Model env) sig m)
+topicModels :: (Observables env '["φ", "θ"] [Double],
+               Observable env "w" String)
   -- | vocabulary
   => [String]
   -- | number of topics
@@ -108,9 +107,9 @@ topicModels :: forall env sig m. (Observables env '["φ", "θ"] [Double],
   -- | number of words for each document
   -> [Int]
   -- | generated words for each document
-  -> m [[String]]
+  -> Model env sig m [[String]]
 topicModels vocab n_topics doc_words = do
-  mapM (topicModel @env vocab n_topics) doc_words
+  mapM (topicModel vocab n_topics) doc_words
 
 
 -- | Example possible vocabulary
@@ -124,13 +123,12 @@ simLDA = do
   let n_words  = 100
       n_topics = 2
   -- Specify model environment
-      env_in :: Env TopicEnv
-      env_in = #θ := [[0.5, 0.5]] <:>
-               #φ := [[0.12491280814569208,1.9941599739151505e-2,0.5385152817942926,0.3166303103208638],
+      env_in = #θ := [[0.5 :: Double, 0.5]] <:>
+               #φ := [[0.12491280814569208 :: Double,1.9941599739151505e-2,0.5385152817942926,0.3166303103208638],
                       [1.72605174564027e-2,2.9475900240868515e-2,9.906011619752661e-2,0.8542034661052021]] <:>
-               #w := [] <:> nil
+               #w := ([] :: [String]) <:> nil
   -- Simulate from topic model
-  (words, env_out) <- SIM.simulate env_in (topicModel @TopicEnv vocab n_topics n_words)
+  (words, env_out) <- SIM.simulate env_in (topicModel vocab n_topics n_words)
   return words
 
 -- | Example document of words
@@ -144,11 +142,11 @@ mhLDA  = do
   let n_words   = 100
       n_topics  = 2
   -- Specify model environment
-      env_mh_in = #θ := [] <:>  #φ := [] <:> #w := topic_data <:> nil
+      env_mh_in = #θ := ([] :: [[Double]]) <:>  #φ := ([] :: [[Double]]) <:> #w := topic_data <:> nil
   -- Run MH for 500 iterations
-  env_mh_outs <- MH.mhRaw 500 (topicModel @TopicEnv vocab n_topics n_words) env_mh_in ["φ", "θ"]
-  -- Dist the most recent sampled parameters from the MH trace
-  let env_pred = head env_mh_outs
-      θs       = get #θ env_pred
-      φs       = get #φ env_pred
+  env_mh_outs <- MH.mhRaw 500 (topicModel vocab n_topics n_words) env_mh_in ["φ", "θ"]
+  -- Draw the most recent sampled parameters from the MH trace
+  let env_pred   = head env_mh_outs
+      θs         = get #θ env_pred
+      φs         = get #φ env_pred
   return (θs, φs)

@@ -10,6 +10,8 @@
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE RankNTypes #-}
 
 {- | The effect for reading observable variables from a model environment.
 -}
@@ -26,9 +28,10 @@ import           Control.Effect.State       (State)
 import qualified Control.Effect.State       as State
 import           Data.Kind                  (Type)
 import           Data.Maybe                 (listToMaybe)
-import           Env                        (Assign, Env, ObsVar,
-                                             Observable (..))
+import           Env                        (Assign, Env, EnvElem(..), ObsVar,
+                                             Observable, get, set)
 import           GHC.Base                   (Symbol)
+import           Data.WorldPeace.Extra      (IsMember(productGet, productSet))
 
 newtype ObsReaderC (env :: [Assign Symbol *]) m k = ObsReaderC { runObsReaderC :: StateC (Env env) m k }
     deriving (Functor, Applicative, Monad)
@@ -37,6 +40,11 @@ runObsReader :: Functor m => Env env -> ObsReaderC env m a -> m a
 runObsReader env (ObsReaderC runObsReaderC) = evalState env runObsReaderC
 
 instance (Algebra sig m) => Algebra (ObsReader env :+: sig) (ObsReaderC env m) where
+    alg :: forall sig m ctx n env a x a'. (Algebra sig m, Functor ctx) =>
+        Handler ctx n (ObsReaderC env m)
+        -> (:+:) (ObsReader env) sig n a
+        -> ctx ()
+        -> ObsReaderC env m (ctx a)
     alg hdl sig ctx = ObsReaderC $ case sig of
         L (Ask x) -> do
             -- Use nested state effect to get current env
