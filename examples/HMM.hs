@@ -17,8 +17,8 @@ module HMM where
 import           Control.Algebra (Has)
 import           Control.Monad   ((>=>))
 import           Data.Kind       (Constraint)
-import           Env             (Assign ((:=)), Env, Observable, Observables,
-                                  nil, (<:>))
+import           Env             (Assign ((:=)), Env, ConstructProduct, Observable, Observables,
+                                  nil, (<:>), ObsVar)
 import           Inference.LW    as LW (lw)
 import           Inference.SIM   as SIM (simulate)
 import           Model           (Model, bernoulli', binomial, uniform)
@@ -71,6 +71,7 @@ inferLwHMM   = do
   -- Specify model inputs
   let x_0 = 0; n = 10
   -- Specify model environment
+      env :: Env HMMEnv
       env = #trans_p := [] <:> #obs_p := [] <:> #y := [0, 1, 1, 3, 4, 5, 5, 5, 6, 5] <:> nil
   LW.lw 100 env $ hmmFor n x_0
 

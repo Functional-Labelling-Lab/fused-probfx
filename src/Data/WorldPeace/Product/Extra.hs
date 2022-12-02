@@ -12,34 +12,14 @@
 
 module Data.WorldPeace.Product.Extra
   ( pmap
-  , Elem
-  , PElem
+  , pfoldr
+  , pfoldl
+  , GetMaybe(..)
+  , DefaultProduct(..)
   ) where
 
+import           Data.WorldPeace.Extra (IsMember(..))
 import           Data.WorldPeace.Product (Product (..))
-
--- | Type-level version of the 'elem' function.
---
--- >>> Refl :: Elem String '[Double, String, Char] :~: 'True
--- Refl
--- >>> Refl :: Elem String '[Double, Char] :~: 'False
--- Refl
-type family Elem (x :: k) (xs :: [k]) :: Bool where
-  Elem _ '[]       = 'False
-  Elem x (x ': xs) = 'True
-  Elem x (y ': xs) = Elem x xs
-
-class PElem (a :: k) (as :: [k]) where
-  get :: Product f as -> f a
-  set :: f a -> Product f as -> Product f as
-
-instance PElem a (a ': as) where
-  get (Cons a _) = a
-  set a (Cons _ p) = Cons a p
-
-instance PElem a as => PElem a (a' : as) where
-  get (Cons _ p) = get p
-  set a (Cons a' p) = Cons a' $ set a p
 
 pmap :: (forall a. f a -> g a) -> Product f as -> Product g as
 pmap _ Nil        = Nil
@@ -52,3 +32,34 @@ pfoldr f x (Cons a p) = a `f` pfoldr f x p
 pfoldl :: (forall a. x -> f a -> x) -> x -> Product f as -> x
 pfoldl _ x Nil        = x
 pfoldl f x (Cons a p) = pfoldl f (x `f` a) p
+
+class GetMaybe a as where
+  productGetMaybe :: Product f as -> Maybe (f a)
+
+instance GetMaybe a (a : as) where
+  productGetMaybe (Cons a _) = Just a
+
+instance GetMaybe a '[] where
+  productGetMaybe Nil = Nothing
+
+instance {-# OVERLAPS #-} GetMaybe a as => GetMaybe a (a' : as) where
+  productGetMaybe (Cons _ p) = productGetMaybe p
+
+instance {-# INCOHERENT #-} GetMaybe a as where
+  productGetMaybe _ = undefined
+
+class DefaultProduct (as :: [u]) where
+  productDefault :: (forall (a :: u). f a) -> Product f as
+
+instance DefaultProduct '[] where
+  productDefault _ = Nil
+
+instance {-# OVERLAPS #-} DefaultProduct as => DefaultProduct (a : as) where
+  productDefault d = Cons d $ productDefault d
+
+instance {-# INCOHERENT #-} DefaultProduct as where
+  productDefault d = undefined
+
+
+-- product :: b -> (f a -> b) -> Product f  -> b
+-- product

@@ -24,7 +24,6 @@ import qualified Data.Map                      as Map
 import           Data.Maybe                    (fromJust)
 import           Data.Proxy                    (Proxy (..))
 import           Data.WorldPeace               (Product (Cons))
-import           Data.WorldPeace.Product.Extra (Elem)
 import           Env                           (Assign ((:=)), Env,
                                                 EnvElem (..), HasObsVar,
                                                 ObsVar (..), nil, varToStr)

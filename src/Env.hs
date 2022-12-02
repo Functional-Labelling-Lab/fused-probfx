@@ -14,6 +14,8 @@
 {-# LANGUAGE QuantifiedConstraints  #-}
 {-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE InstanceSigs #-}
 
 {- | This implements the model environments that users must provide upon running a model;
      such environments assign traces of values to the "observable variables" (random
@@ -30,7 +32,7 @@ module Env
   , EnvElem(..)
   , Observable(..)
   , Observables(..)
-  , (<:>)
+  , ConstructProduct(..)
   , nil
   , get
   , set
@@ -41,7 +43,6 @@ import           Data.Kind                     (Constraint)
 import           Data.Proxy                    (Proxy (Proxy))
 import           Data.WorldPeace.Extra         (IsMember (..))
 import           Data.WorldPeace.Product       (Product (Cons, Nil))
-import           Data.WorldPeace.Product.Extra (Elem)
 import           Data.WorldPeace.Union         (Union)
 import           FindElem                      (FindElem (..), Idx (..))
 import           GHC.OverloadedLabels          (IsLabel (..))
@@ -59,6 +60,17 @@ instance (KnownSymbol x, x ~ x') => IsLabel x (ObsVar x') where
 varToStr :: forall x. ObsVar x -> String
 varToStr ObsVar = symbolVal (Proxy @x)
 
+class ConstructProduct (f :: u -> *) (a :: u) (c :: *) | f c -> a, f a -> c where
+  infixr 5 <:>
+  (<:>) :: c -> Product f as -> Product f (a : as)
+
+nil :: Product (f :: u -> *) '[]
+nil = Nil
+
+instance ConstructProduct EnvElem (x := a) (Assign (ObsVar x) [a]) where
+  (<:>) :: Assign (ObsVar x) [a] -> Product EnvElem as -> Product EnvElem ((x ':= a) ': as)
+  (_ := as) <:> p = Cons (Elem as) p
+
 -- | Assign or associate a variable @x@ with a value of type @a@
 data Assign x a = x := a
 
@@ -66,15 +78,6 @@ data EnvElem (e :: Assign Symbol *) where
   Elem :: [a] -> EnvElem (x := a)
 
 type Env = Product EnvElem
-
--- | Empty model environment
-nil :: Env '[]
-nil = Nil
-
-infixr 5 <:>
--- | Prepend a variable assignment to a model environment
-(<:>) :: HasObsVar x env ~ False => Assign (ObsVar x) [a] -> Env env -> Env ((x := a) : env)
-(_ := as) <:> env = Cons (Elem as) env
 
 type Observable env x a = IsMember (x := a) env
 

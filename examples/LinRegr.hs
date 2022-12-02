@@ -15,7 +15,7 @@ module LinRegr where
 
 import           Data.Kind     (Constraint)
 import           Env           (Assign ((:=)), Observable, Observables, get,
-                                nil, (<:>))
+                                nil, (<:>), Env)
 import           Inference.LW  as LW (lw)
 import           Inference.MH  as MH (mhRaw)
 import           Inference.SIM as SIM (simulate)
@@ -25,8 +25,8 @@ import           Sampler       (Sampler)
 -- | Linear regression environment
 type LinRegrEnv =
     '[  "m" ':= Double, -- ^ gradient
-        "σ" ':= Double, -- ^ noise
         "c" ':= Double, -- ^ intercept
+        "σ" ':= Double, -- ^ noise
         "y" ':= Double  -- ^ output
      ]
 
@@ -50,7 +50,8 @@ simulateLinRegr = do
   -- Specify model inputs
   let xs  = [0 .. 100]
   -- Specify model environment
-      env = (#m := [3.0 :: Double]) <:> (#c := [0 :: Double]) <:> (#σ := [1 :: Double]) <:> (#y := ([] :: [Double])) <:> nil
+      env :: Env LinRegrEnv
+      env = (#m := [3.0]) <:> (#c := [0]) <:> (#σ := [1]) <:> (#y := []) <:> nil
   -- Simulate linear regression for each input x
   ys_envs <- mapM (SIM.simulate env . linRegr) xs
   let ys = map fst ys_envs
@@ -62,7 +63,8 @@ inferLwLinRegr = do
   -- Specify model inputs
   let xs  = [0 .. 100]
   -- Specify model environments and pair with model input
-      x_envs = [(x, env) | x <- xs, let env = (#m := ([] :: [Double])) <:> (#c := ([] :: [Double])) <:> (#σ := ([] :: [Double])) <:> (#y := [3*x]) <:> nil]
+      x_envs :: [(Double, Env LinRegrEnv)]
+      x_envs = [(x, env) | x <- xs, let env = (#m := []) <:> (#c := []) <:> (#σ := []) <:> (#y := [3*x]) <:> nil]
   -- Run LW for 20 iterations on each pair of model input and environment
   lwTrace <- mapM (\(x, env) -> LW.lw 20 env (linRegr x)) x_envs
    -- Get the sampled values of mu and their likelihood-weighting
@@ -75,10 +77,11 @@ inferMhLinRegr :: Sampler [Double]
 inferMhLinRegr = do
   -- Specify model inputs
   let xs  = [0 .. 100]
+      x_envs :: [(Double, Env LinRegrEnv)]
   -- Specify model environments and pair with model input
-      x_envs = [(x, env) | x <- xs, let env = (#m := ([] :: [Double])) <:> (#c := ([] :: [Double])) <:> (#σ := ([] :: [Double])) <:> (#y := [3*x]) <:> nil]
+      x_envs = [(x, env) | x <- xs, let env = (#m := []) <:> (#c := []) <:> (#σ := []) <:> (#y := [3*x]) <:> nil]
   -- Run MH for 100 iterations on each pair of model input and environment
-  mhTrace <- concat <$> mapM (\(x, env) -> MH.mhRaw 100 (linRegr x) env ["m", "c"]) x_envs
+  mhTrace <- concat <$> mapM (\(x, env) -> MH.mhRaw 100 (linRegr x) env nil (#m <:> #c <:> nil)) x_envs
   -- Get the sampled values of mu
   let mus = concatMap (get #m) mhTrace
   return mus
