@@ -33,7 +33,21 @@ import qualified Data.Vector                             as V
 import qualified Data.Vector.Unboxed                     as UV
 import           Numeric.Log                             (Log (..))
 import qualified OpenSum
-import           Sampler
+import Control.Effect.Sampler
+    ( Sampler,
+      createSampler,
+      sampleCauchy,
+      sampleNormal,
+      sampleUniform,
+      sampleDiscreteUniform,
+      sampleGamma,
+      sampleBeta,
+      sampleBernoulli,
+      sampleBinomial,
+      sampleCategorical,
+      sampleDiscrete,
+      samplePoisson,
+      sampleDirichlet ) 
 import           Statistics.Distribution                 (ContDistr (density),
                                                           DiscreteDistr (probability))
 import           Statistics.Distribution.Beta            (betaDistr)
@@ -47,6 +61,7 @@ import           Statistics.Distribution.Normal          (normalDistr)
 import           Statistics.Distribution.Poisson         (poisson)
 import           Statistics.Distribution.Uniform         (uniformDistr)
 import qualified System.Random.MWC.Distributions         as MWC
+import Control.Algebra (Has)
 
 -- | Primitive distribution
 data PrimDist a where
@@ -193,9 +208,9 @@ instance Show ErasedPrimDist where
   show (ErasedPrimDist d) = show d
 
 -- | Dist a value from a primitive distribution in the @Sampler@ monad
-dist ::
-     PrimDist a
-  -> Sampler a
+dist :: (Has Sampler sig m)
+  => PrimDist a
+  -> m a
 dist (HalfCauchyDist σ )
   = abs <$> createSampler (sampleCauchy 0 σ)
 dist (CauchyDist μ σ )

@@ -27,33 +27,37 @@ import qualified Data.Map                   as Map
 import           Data.Maybe                 (fromMaybe)
 import           Env                        (Env)
 import           PrimDist                   (dist)
-import           Sampler                    (Sampler)
+import           Control.Effect.Sampler                    (Sampler)
 import           Trace                      (FromSTrace (fromSTrace), STrace)
 
 -- SampObs Effect Carrier
 newtype SampObsC (m :: * -> *) (k :: *) = SampObsC { runSampObs :: m k }
     deriving (Functor, Applicative, Monad)
 
-instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsC m) where
+-- SampObsC replaces the SampObs effect with the Lift Sampler effect
+instance (Has Sampler sig m) => Algebra (SampObs :+: sig) (SampObsC m) where
   alg hdl sig ctx = SampObsC $ case sig of
     L (SampObs d obs addr) -> do
-      x <- sendM $ maybe (dist d) pure obs
+      x <- case obs of
+        Just v -> pure v
+        Nothing -> dist d
+      -- x <- sendM $ maybe (dist d) pure obs
       pure $ x <$ ctx
     R other -> alg (runSampObs . hdl) other ctx
 
 -- | Top-level wrapper for simulating from a model
-simulate :: (FromSTrace env)
+simulate :: (FromSTrace env, Has Sampler sig m)
   => Env env                                                     -- ^ model environment
-  -> ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
-  -> Sampler (a, Env env)                                        -- ^ (model output, output environment)
+  -> ObsReaderC env (DistC (SampTracerC (SampObsC m))) a -- ^ model
+  -> m (a, Env env)                                        -- ^ (model output, output environment)
 simulate model env = do
   (output, strace) <- runSimulate model env
   return (output, fromSTrace strace)
 
 -- | Handler for simulating once from a probabilistic program
-runSimulate ::
-    Env env                                                     -- ^ model environment
- -> ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler)))) a -- ^ model
- -> Sampler (a, STrace)                                         -- ^ (model output, sample trace)
+runSimulate :: (Has Sampler sig m)
+ => Env env                                                     -- ^ model environment
+ -> ObsReaderC env (DistC (SampTracerC (SampObsC m))) a -- ^ model
+ -> m (a, STrace)                                         -- ^ (model output, sample trace)
 runSimulate env
-  = runM . runSampObs . runSampTracer . runDist . runObsReader env
+  = runSampObs . runSampTracer . runDist . runObsReader env
