@@ -50,7 +50,7 @@ import qualified Data.WorldPeace.Extra         as WPE
 import           Data.WorldPeace.Product.Extra (MaybeIsMember (..), DefaultProduct(..), pfoldr)
 import           Env                           (Assign (..),
                                                 ConstructProduct (..), Env,
-                                                ObsVar, nil, varToStr, ExtractVars, ExtractTypes)
+                                                ObsVar, nil, varToStr, ExtractVars, ExtractTypes, HasObsVar)
 import           GHC.Types                     (Symbol)
 import           Model                         (Model, runModel)
 import           OpenSum                       (OpenSum (..))
@@ -78,7 +78,7 @@ instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsTransC 
     R other -> alg (runSampObsTrans . hdl) other ctx
 
 -- SampObs effect carrier for the primary model
-newtype SampObsC (m :: * -> *) (k :: *) = SampObsC { runSampObs :: ReaderC (ErasedTransitionMaps, STrace, Addr) m k }
+newtype SampObsC (m :: * -> *) (k :: *) = SampObsC { runSampObs :: ReaderC (TransitionMap, STrace, Addr) m k }
     deriving (Functor, Applicative, Monad)
 
 instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsC m) where
@@ -86,7 +86,7 @@ instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsC m) wh
     L (SampObs (PrimDistPrf d) obs addr) -> case obs of
       Just y  -> pure $ y <$ ctx
       Nothing -> do
-        (ErasedTransitionMaps trans, strace, α_samp) <- ask @(ErasedTransitionMaps, STrace, Addr)
+        (trans, strace, α_samp) <- ask @(TransitionMap, STrace, Addr)
         x <- sendM $ lookupSample trans strace d addr α_samp
         pure $ x <$ ctx
     R other -> alg (runSampObs . hdl) (R other) ctx
@@ -94,7 +94,7 @@ instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsC m) wh
 -- Product setup for optional sample sites
 newtype ObsSite x = ObsSite (ObsVar x)
 
-instance ConstructProduct ObsSite x (ObsVar x) where
+instance ConstructProduct ObsSite x sampled (ObsVar x) where
   constructProduct = ObsSite
 
 type ObsSites env = WP.Product ObsSite env
@@ -103,30 +103,16 @@ type ObsSites env = WP.Product ObsSite env
 data Transition (sig :: (* -> *) -> * -> *) (m :: * -> *) (e :: Assign Symbol *) where
   Transition :: ObsVar x -> (a -> Model '[] sig m a) -> Transition sig m (x ':= a)
 
-instance ConstructProduct (Transition sig m) (x := a) (Assign (ObsVar x) (a -> Model '[] sig m a)) where
+instance HasObsVar x trans ~ False => ConstructProduct (Transition sig m) (x := a) trans (Assign (ObsVar x) (a -> Model '[] sig m a)) where
   constructProduct (x := trans) = Transition x trans
 
 type Transitions env = WP.Product (Transition (MhSig '[]) MhTransCarrier) env
 
 -- Product setup for map from transition model types to dynamic tags
-data TransitionMap sig m a where
-  TransitionMap :: Map Tag (a -> Model '[] sig m a) -> TransitionMap sig m a
+data ErasedTransition sig m where
+  ErasedTransition :: (a -> Model '[] sig m a) -> ErasedTransition sig m
 
-type TransitionMaps types = WP.Product (TransitionMap (MhSig '[]) MhTransCarrier) types
-
-data ErasedTransitionMaps where
-  ErasedTransitionMaps :: TransitionMaps types -> ErasedTransitionMaps
-
-addTransitionType :: forall trans e.
-     Transition (MhSig '[]) MhTransCarrier e
-  -> TransitionMaps (ExtractTypes trans)
-  -> TransitionMaps (ExtractTypes trans)
-addTransitionType (Transition x trans) transMaps = 
-  fromJust $ productSetMaybe newTransitionMap transMaps
-  where
-    (TransitionMap transMap) = fromJust $ productGetMaybe transMaps
-    newTransitionMap = TransitionMap $ Map.insert (varToStr x) trans transMap
-
+type TransitionMap = Map Tag (ErasedTransition (MhSig '[]) MhTransCarrier)
 
 -- Effect and carrier for the primary model
 type MhSig env = ObsReader env :+: Dist :+: SampObs :+: Lift Sampler
@@ -147,11 +133,11 @@ mh :: forall env trans a sampled. (FromSTrace env, WP.Contains trans env, WP.Con
   -> Sampler [Env env] -- ^ [output model environment]
 mh n model env_0 trans tagsP = do
   -- Perform initial run of MH with no proposal sample site
-  y0 <- runMH model env_0 nil Map.empty ("", 0)
+  y0 <- runMH model env_0 Map.empty Map.empty ("", 0)
   -- Perform n MH iterations
   let tags = pfoldr (\(ObsSite x) tags -> varToStr x : tags) [] tagsP
-  let transMaps = pfoldr (addTransitionType @trans) (productDefault @_ @(ExtractTypes trans) $ TransitionMap Map.empty) trans
-  mhTrace <- loop n [y0] (mhStep model env_0 transMaps tags)
+  let transMap = pfoldr (\(Transition x trans) -> Map.insert (varToStr x) (ErasedTransition trans)) Map.empty trans
+  mhTrace <- loop n [y0] (mhStep model env_0 transMap tags)
   -- Return sample trace
   return $ map (\((_, strace), _) -> fromSTrace strace) mhTrace
   where
@@ -172,11 +158,11 @@ mhRaw :: forall env trans a sampled. (FromSTrace env, WP.Contains trans env, WP.
   -> Sampler [Env env] -- ^ [output model environment]
 mhRaw n model env_0 trans tagsP = do
   -- Perform initial run of MH with no proposal sample site
-  y0 <- runMH model env_0 nil Map.empty ("", 0)
+  y0 <- runMH model env_0 Map.empty Map.empty ("", 0)
   -- Perform n MH iterations
   let tags = pfoldr (\(ObsSite x) tags -> varToStr x : tags) [] tagsP
-  let tranMaps = pfoldr (addTransitionType @trans) (productDefault @_ @(ExtractTypes trans) $ TransitionMap Map.empty) trans
-  mhTrace <- loop n [y0] (mhStep model env_0 tranMaps tags)
+  let transMap = pfoldr (\(Transition x trans) -> Map.insert (varToStr x) (ErasedTransition trans)) Map.empty trans
+  mhTrace <- loop n [y0] (mhStep model env_0 transMap tags)
   -- Return sample trace
   return $ map (\((_, strace), _) -> fromSTrace strace) mhTrace
   where
@@ -190,7 +176,7 @@ mhRaw n model env_0 trans tagsP = do
 mhStep ::
      Model env (MhSig env) (MhCarrier env) a -- ^ model
   -> Env env          -- ^ model environment
-  -> TransitionMaps trans -- ^ Optional explicit transition models
+  -> TransitionMap -- ^ Optional explicit transition models
   -> [Tag] -- ^ optional list of observable variable names (strings) to specify sample sites of interest
   -> ((a, STrace), LPTrace) -- ^ trace of previous MH outputs
   -> Sampler (Maybe ((a, STrace), LPTrace)) -- ^ updated trace of MH outputs
@@ -216,12 +202,12 @@ mhStep model env tranMaps tags trace = do
 runMH ::
      Model env (MhSig env) (MhCarrier env) a -- ^ model
   -> Env env        -- ^ model environment
-  -> TransitionMaps trans -- ^ Optional explicit transition models
+  -> TransitionMap  -- ^ Optional explicit transition models
   -> STrace         -- ^ sample trace of previous MH iteration
   -> Addr           -- ^ sample address of interest
   -> Sampler ((a, STrace), LPTrace) -- ^ (model output, sample trace, log-probability trace)
-runMH model env tranMaps strace α_samp =
-     runM $ runReader (ErasedTransitionMaps tranMaps, strace, α_samp) 
+runMH model env transMap strace α_samp =
+     runM $ runReader (transMap, strace, α_samp) 
           $ runSampObs $ runLPTracer True $ runSampTracer $ runDist 
           $ runObsReader env $ runModel model
 
@@ -230,19 +216,18 @@ runTransModel model = runM $ runSampObsTrans $ runDist $ runObsReader nil $ runM
 
 -- | For a given address, look up a sampled value from a sample trace, returning
 --   it only if the primitive distribution it was sampled from matches the current one.
-lookupSample :: forall a types. OpenSum.Member a PrimVal
-  => TransitionMaps types
+lookupSample :: forall a. OpenSum.Member a PrimVal
+  => TransitionMap
   -> STrace     -- ^ sample trace
   -> PrimDist a -- ^ distribution to sample from
   -> Addr       -- ^ address of current sample site
   -> Addr       -- ^ address of proposal sample site
   -> Sampler a
-lookupSample trans samples d α@(t, _) α_samp
+lookupSample transMap samples d α@(t, _) α_samp
   | α == α_samp =  fromMaybe (dist d) $ do 
-      TransitionMap transMap <- productGetMaybe @a trans
       (_, x) <- Map.lookup α samples
-      tran <- Map.lookup t transMap
-      return $ runTransModel $ tran $ fromJust $ OpenSum.prj x
+      (ErasedTransition trans) <- Map.lookup t transMap
+      return $ runTransModel $ unsafeCoerce trans $ fromJust $ OpenSum.prj @a x
   | otherwise = fromMaybe (dist d) $ do 
         (ErasedPrimDist d', x) <- Map.lookup α samples
         return $

@@ -62,18 +62,18 @@ instance (KnownSymbol x, x ~ x') => IsLabel x (ObsVar x') where
 varToStr :: forall x. ObsVar x -> String
 varToStr ObsVar = symbolVal (Proxy @x)
 
-class ConstructProduct (f :: u -> *) (a :: u) (c :: *) | f c -> a, f a -> c where
+class ConstructProduct (f :: u -> *) (a :: u) (as :: [u]) (c :: *) | f c -> a, f a -> c where
   constructProduct :: c -> f a
 
 infixr 5 <:>
-(<:>) :: ConstructProduct f a c => c -> WP.Product f as -> WP.Product f (a : as)
-x <:> p = WP.Cons (constructProduct x) p
+(<:>) :: forall f a as c. ConstructProduct f a as c => c -> WP.Product f as -> WP.Product f (a : as)
+x <:> p = WP.Cons (constructProduct @_ @f @a @as @c x) p
 
 nil :: WP.Product (f :: u -> *) '[]
 nil = WP.Nil
 
-instance ConstructProduct EnvElem (x := a) (Assign (ObsVar x) [a]) where
-  constructProduct (x := as) = Elem as
+instance HasObsVar x env ~ False => ConstructProduct EnvElem (x := a) env (Assign (ObsVar x) [a]) where
+  constructProduct (_ := as) = Elem as
 
 -- | Assign or associate a variable @x@ with a value of type @a@
 data Assign x a = x := a

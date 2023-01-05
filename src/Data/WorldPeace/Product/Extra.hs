@@ -53,10 +53,6 @@ instance {-# OVERLAPS #-} MaybeIsMember a as => MaybeIsMember a (a' : as) where
     newP <- productSetMaybe newA p
     return $ Cons a newP
 
-instance {-# INCOHERENT #-} MaybeIsMember a as where
-  productGetMaybe = undefined
-  productSetMaybe = undefined
-
 class DefaultProduct (as :: [u]) where
   productDefault :: (forall (a :: u). f a) -> Product f as
 
