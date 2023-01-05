@@ -9,12 +9,14 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Data.WorldPeace.Product.Extra
   ( pmap
   , pfoldr
   , pfoldl
-  , GetMaybe(..)
+  , MaybeIsMember(..)
   , DefaultProduct(..)
   ) where
 
@@ -27,26 +29,33 @@ pmap f (Cons a p) = Cons (f a) $ pmap f p
 
 pfoldr :: (forall a. f a -> x -> x) -> x -> Product f as -> x
 pfoldr _ x Nil        = x
-pfoldr f x (Cons a p) = a `f` pfoldr f x p
+pfoldr f x (Cons a p) = f a $ pfoldr f x p
 
 pfoldl :: (forall a. x -> f a -> x) -> x -> Product f as -> x
 pfoldl _ x Nil        = x
 pfoldl f x (Cons a p) = pfoldl f (x `f` a) p
 
-class GetMaybe a as where
+class MaybeIsMember a as where
   productGetMaybe :: Product f as -> Maybe (f a)
+  productSetMaybe :: f a -> Product f as -> Maybe (Product f as)
 
-instance GetMaybe a (a : as) where
+instance MaybeIsMember a (a : as) where
   productGetMaybe (Cons a _) = Just a
+  productSetMaybe a (Cons _ p) = Just (Cons a p)
 
-instance GetMaybe a '[] where
+instance MaybeIsMember a '[] where
   productGetMaybe Nil = Nothing
+  productSetMaybe _ Nil = Nothing
 
-instance {-# OVERLAPS #-} GetMaybe a as => GetMaybe a (a' : as) where
+instance {-# OVERLAPS #-} MaybeIsMember a as => MaybeIsMember a (a' : as) where
   productGetMaybe (Cons _ p) = productGetMaybe p
+  productSetMaybe newA (Cons a p) = do
+    newP <- productSetMaybe newA p
+    return $ Cons a newP
 
-instance {-# INCOHERENT #-} GetMaybe a as where
-  productGetMaybe _ = undefined
+instance {-# INCOHERENT #-} MaybeIsMember a as where
+  productGetMaybe = undefined
+  productSetMaybe = undefined
 
 class DefaultProduct (as :: [u]) where
   productDefault :: (forall (a :: u). f a) -> Product f as
@@ -59,7 +68,3 @@ instance {-# OVERLAPS #-} DefaultProduct as => DefaultProduct (a : as) where
 
 instance {-# INCOHERENT #-} DefaultProduct as where
   productDefault d = undefined
-
-
--- product :: b -> (f a -> b) -> Product f  -> b
--- product

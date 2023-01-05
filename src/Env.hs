@@ -37,13 +37,15 @@ module Env
   , get
   , set
   , HasObsVar
+  , ExtractVars
+  , ExtractTypes
+  , (<:>)
   ) where
 
 import           Data.Kind                     (Constraint)
 import           Data.Proxy                    (Proxy (Proxy))
-import           Data.WorldPeace.Extra         (IsMember (..))
-import           Data.WorldPeace.Product       (Product (Cons, Nil))
-import           Data.WorldPeace.Union         (Union)
+import qualified Data.WorldPeace               as WP
+import qualified Data.WorldPeace.Extra         as WPE
 import           FindElem                      (FindElem (..), Idx (..))
 import           GHC.OverloadedLabels          (IsLabel (..))
 import           GHC.TypeLits                  (KnownSymbol, Symbol, symbolVal)
@@ -61,15 +63,17 @@ varToStr :: forall x. ObsVar x -> String
 varToStr ObsVar = symbolVal (Proxy @x)
 
 class ConstructProduct (f :: u -> *) (a :: u) (c :: *) | f c -> a, f a -> c where
-  infixr 5 <:>
-  (<:>) :: c -> Product f as -> Product f (a : as)
+  constructProduct :: c -> f a
 
-nil :: Product (f :: u -> *) '[]
-nil = Nil
+infixr 5 <:>
+(<:>) :: ConstructProduct f a c => c -> WP.Product f as -> WP.Product f (a : as)
+x <:> p = WP.Cons (constructProduct x) p
+
+nil :: WP.Product (f :: u -> *) '[]
+nil = WP.Nil
 
 instance ConstructProduct EnvElem (x := a) (Assign (ObsVar x) [a]) where
-  (<:>) :: Assign (ObsVar x) [a] -> Product EnvElem as -> Product EnvElem ((x ':= a) ': as)
-  (_ := as) <:> p = Cons (Elem as) p
+  constructProduct (x := as) = Elem as
 
 -- | Assign or associate a variable @x@ with a value of type @a@
 data Assign x a = x := a
@@ -77,15 +81,15 @@ data Assign x a = x := a
 data EnvElem (e :: Assign Symbol *) where
   Elem :: [a] -> EnvElem (x := a)
 
-type Env = Product EnvElem
+type Env = WP.Product EnvElem
 
-type Observable env x a = IsMember (x := a) env
+type Observable env x a = WPE.IsMember (x := a) env
 
-get :: forall a x env. IsMember (x := a) env => ObsVar x -> Env env -> [a]
-get _ env = let (Elem as) = productGet @(x := a) env in as
+get :: forall a x env. WPE.IsMember (x := a) env => ObsVar x -> Env env -> [a]
+get _ env = let (Elem as) = WPE.productGet @(x := a) env in as
 
-set :: forall a x env. IsMember (x := a) env => ObsVar x -> [a] -> Env env -> Env env
-set _ as env = productSet @(x := a) (Elem as) env
+set :: forall a x env. WPE.IsMember (x := a) env => ObsVar x -> [a] -> Env env -> Env env
+set _ as env = WPE.productSet @(x := a) (Elem as) env
 
 type family Observables env (ks :: [Symbol]) a :: Constraint where
   Observables env (x ': xs) a = (Observable env x a, Observables env xs a)
@@ -95,3 +99,11 @@ type family HasObsVar x env where
   HasObsVar x ((x := _) : _) = True
   HasObsVar x (_ : xs) = HasObsVar x xs
   HasObsVar _ '[] = False
+
+type family ExtractVars (e :: [Assign Symbol *]) :: [Symbol] where
+  ExtractVars '[] = '[]
+  ExtractVars ((x := _) : e) = x : WP.Remove x (ExtractVars e)
+
+type family ExtractTypes (e :: [Assign Symbol *]) :: [*] where
+  ExtractTypes '[] = '[]
+  ExtractTypes ((_ := a) : e) = a : WP.Remove a (ExtractTypes e)

@@ -11,7 +11,8 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
-{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 {- | Metropolis-Hastings inference.
 -}
@@ -41,15 +42,15 @@ import           Control.Monad.Trans           (MonadTrans (lift))
 import           Data.Kind                     (Type)
 import           Data.Map                      (Map)
 import qualified Data.Map                      as Map
-import           Data.Maybe                    (catMaybes, fromJust)
+import           Data.Maybe                    (catMaybes, fromJust, fromMaybe)
 import           Data.Set                      (Set, (\\))
 import qualified Data.Set                      as Set
 import qualified Data.WorldPeace               as WP
-import           Data.WorldPeace.Extra         (Contains)
-import           Data.WorldPeace.Product.Extra (GetMaybe (..), DefaultProduct(..), pfoldr)
+import qualified Data.WorldPeace.Extra         as WPE
+import           Data.WorldPeace.Product.Extra (MaybeIsMember (..), DefaultProduct(..), pfoldr)
 import           Env                           (Assign (..),
                                                 ConstructProduct (..), Env,
-                                                ObsVar, nil, varToStr)
+                                                ObsVar, nil, varToStr, ExtractVars, ExtractTypes)
 import           GHC.Types                     (Symbol)
 import           Model                         (Model, runModel)
 import           OpenSum                       (OpenSum (..))
@@ -64,18 +65,19 @@ import           Trace                         (FromSTrace (..), LPTrace,
                                                 STrace, updateLPTrace)
 import           Unsafe.Coerce                 (unsafeCoerce)
 
+-- SampObs effect carrier for the transition models
 newtype SampObsTransC (m :: * -> *) (k :: *) = SampObsTransC { runSampObsTrans :: m k }
     deriving (Functor, Applicative, Monad)
 
 instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsTransC m) where
   alg hdl sig ctx = SampObsTransC $ case sig of
-    L (SampObs (PrimDistPrf d) Nothing addr) -> do
+    L (SampObs d Nothing addr) -> do
       x <- sendM $ dist d
       pure $ x <$ ctx
     L _ -> error "Should not have used the observe since the environment is empty"
     R other -> alg (runSampObsTrans . hdl) other ctx
 
--- SampObs Effect Carrier
+-- SampObs effect carrier for the primary model
 newtype SampObsC (m :: * -> *) (k :: *) = SampObsC { runSampObs :: ReaderC (ErasedTransitionMaps, STrace, Addr) m k }
     deriving (Functor, Applicative, Monad)
 
@@ -89,44 +91,53 @@ instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsC m) wh
         pure $ x <$ ctx
     R other -> alg (runSampObs . hdl) (R other) ctx
 
-data Transition (sig :: (* -> *) -> * -> *) (m :: * -> *) (e :: Assign Symbol *) where
-  Transition :: (a -> Model '[] sig m a) -> Transition sig m (x ':= a)
-
-instance ConstructProduct (Transition sig m) (x := a) (Assign (ObsVar x) (a -> Model '[] sig m a)) where
-  (_ := trans) <:> p = WP.Cons (Transition trans) p
-
-type Transitions env = WP.Product (Transition (MhSig '[]) MhTransCarrier) env
-
-data ErasedTransitionMaps where
-  ErasedTransitionMaps :: TransitionMaps trans -> ErasedTransitionMaps
-
+-- Product setup for optional sample sites
 newtype ObsSite x = ObsSite (ObsVar x)
 
 instance ConstructProduct ObsSite x (ObsVar x) where
-  x <:> p = WP.Cons (ObsSite x) p
+  constructProduct = ObsSite
 
 type ObsSites env = WP.Product ObsSite env
 
-type MhSig env = ObsReader env :+: Dist :+: SampObs :+: Lift Sampler
-type MhCarrier env = ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler)))))
-type MhTransCarrier =  ObsReaderC '[] (DistC (SampObsTransC (LiftC Sampler)))
+-- Product setup for transition models
+data Transition (sig :: (* -> *) -> * -> *) (m :: * -> *) (e :: Assign Symbol *) where
+  Transition :: ObsVar x -> (a -> Model '[] sig m a) -> Transition sig m (x ':= a)
 
-type family ExtractVars (e :: [Assign Symbol *]) where
-  ExtractVars '[] = '[]
-  ExtractVars ((x := _) : xas) = x : ExtractVars xas
-  
+instance ConstructProduct (Transition sig m) (x := a) (Assign (ObsVar x) (a -> Model '[] sig m a)) where
+  constructProduct (x := trans) = Transition x trans
 
-type family ExtractTypes (e :: [Assign Symbol *]) where
-  ExtractTypes '[] = '[]
-  ExtractTypes ((_ := a) : xas) = a : WP.Remove a (ExtractTypes xas)
+type Transitions env = WP.Product (Transition (MhSig '[]) MhTransCarrier) env
 
+-- Product setup for map from transition model types to dynamic tags
 data TransitionMap sig m a where
   TransitionMap :: Map Tag (a -> Model '[] sig m a) -> TransitionMap sig m a
 
-type TransitionMaps ts = WP.Product (TransitionMap (MhSig '[]) MhTransCarrier) ts
+type TransitionMaps types = WP.Product (TransitionMap (MhSig '[]) MhTransCarrier) types
+
+data ErasedTransitionMaps where
+  ErasedTransitionMaps :: TransitionMaps types -> ErasedTransitionMaps
+
+addTransitionType :: forall trans e.
+     Transition (MhSig '[]) MhTransCarrier e
+  -> TransitionMaps (ExtractTypes trans)
+  -> TransitionMaps (ExtractTypes trans)
+addTransitionType (Transition x trans) transMaps = 
+  fromJust $ productSetMaybe newTransitionMap transMaps
+  where
+    (TransitionMap transMap) = fromJust $ productGetMaybe transMaps
+    newTransitionMap = TransitionMap $ Map.insert (varToStr x) trans transMap
+
+
+-- Effect and carrier for the primary model
+type MhSig env = ObsReader env :+: Dist :+: SampObs :+: Lift Sampler
+type MhCarrier env = ObsReaderC env (DistC (SampTracerC (LPTracerC (SampObsC (LiftC Sampler)))))
+
+-- Effect and carrier for the transition models
+type MhTransSig = MhSig '[]
+type MhTransCarrier =  ObsReaderC '[] (DistC (SampObsTransC (LiftC Sampler)))
 
 -- | Top-level wrapper for Metropolis-Hastings (MH) inference - successful sampling indexing version
-mh :: forall env trans a sampled. (FromSTrace env, Contains trans env, Contains sampled (ExtractVars env))
+mh :: forall env trans a sampled. (FromSTrace env, WP.Contains trans env, WP.Contains sampled (ExtractVars env))
   => Int -- number of MH samplings
   -> Model env (MhSig env) (MhCarrier env) a -- ^ model awaiting an input
   -> Env env        -- ^ (model input, input model environment)
@@ -139,8 +150,8 @@ mh n model env_0 trans tagsP = do
   y0 <- runMH model env_0 nil Map.empty ("", 0)
   -- Perform n MH iterations
   let tags = pfoldr (\(ObsSite x) tags -> varToStr x : tags) [] tagsP
-  let tranMaps = pfoldr undefined (productDefault @_ @(ExtractTypes trans) $ TransitionMap Map.empty) trans
-  mhTrace <- loop n [y0] (mhStep model env_0 tranMaps tags)
+  let transMaps = pfoldr (addTransitionType @trans) (productDefault @_ @(ExtractTypes trans) $ TransitionMap Map.empty) trans
+  mhTrace <- loop n [y0] (mhStep model env_0 transMaps tags)
   -- Return sample trace
   return $ map (\((_, strace), _) -> fromSTrace strace) mhTrace
   where
@@ -151,7 +162,7 @@ mh n model env_0 trans tagsP = do
       maybe (loop n xs step) (\newX -> loop (n - 1) (newX : xs) step) maybeNewX
 
 -- | Top-level wrapper for Metropolis-Hastings (MH) inference - raw indexing version
-mhRaw :: forall env trans a sampled. (FromSTrace env, Contains trans env, Contains sampled (ExtractVars env))
+mhRaw :: forall env trans a sampled. (FromSTrace env, WP.Contains trans env, WP.Contains sampled (ExtractVars env))
   => Int -- number of MH samplings
   -> Model env (MhSig env) (MhCarrier env) a -- ^ model awaiting an input
   -> Env env        -- ^ (model input, input model environment)
@@ -164,7 +175,7 @@ mhRaw n model env_0 trans tagsP = do
   y0 <- runMH model env_0 nil Map.empty ("", 0)
   -- Perform n MH iterations
   let tags = pfoldr (\(ObsSite x) tags -> varToStr x : tags) [] tagsP
-  let tranMaps = pfoldr undefined (productDefault @_ @(ExtractTypes trans) $ TransitionMap Map.empty) trans
+  let tranMaps = pfoldr (addTransitionType @trans) (productDefault @_ @(ExtractTypes trans) $ TransitionMap Map.empty) trans
   mhTrace <- loop n [y0] (mhStep model env_0 tranMaps tags)
   -- Return sample trace
   return $ map (\((_, strace), _) -> fromSTrace strace) mhTrace
@@ -219,30 +230,25 @@ runTransModel model = runM $ runSampObsTrans $ runDist $ runObsReader nil $ runM
 
 -- | For a given address, look up a sampled value from a sample trace, returning
 --   it only if the primitive distribution it was sampled from matches the current one.
-lookupSample :: forall a trans. OpenSum.Member a PrimVal
-  => TransitionMaps trans
+lookupSample :: forall a types. OpenSum.Member a PrimVal
+  => TransitionMaps types
   -> STrace     -- ^ sample trace
   -> PrimDist a -- ^ distribution to sample from
   -> Addr       -- ^ address of current sample site
   -> Addr       -- ^ address of proposal sample site
   -> Sampler a
 lookupSample trans samples d α@(t, _) α_samp
-  | α == α_samp = case productGetMaybe @a trans of
-      Just (TransitionMap tranMap) -> case Map.lookup α samples of
-        Just (_, x) -> case Map.lookup t tranMap of
-          Just tran -> runTransModel $ tran $ fromJust $ OpenSum.prj x
-          Nothing -> dist d
-        Nothing -> dist d
-      Nothing -> dist d
-  | otherwise   =
-      case Map.lookup α samples of
-        Just (ErasedPrimDist d', x) -> do
+  | α == α_samp =  fromMaybe (dist d) $ do 
+      TransitionMap transMap <- productGetMaybe @a trans
+      (_, x) <- Map.lookup α samples
+      tran <- Map.lookup t transMap
+      return $ runTransModel $ tran $ fromJust $ OpenSum.prj x
+  | otherwise = fromMaybe (dist d) $ do 
+        (ErasedPrimDist d', x) <- Map.lookup α samples
+        return $
           if d == unsafeCoerce d'
-            then case OpenSum.prj x of
-              Just s -> return s
-              Nothing -> dist d
-            else dist d
-        Nothing -> dist d
+            then return (fromJust $ OpenSum.prj x)
+          else dist d
 
 -- | Compute acceptance probability
 accept :: Addr -- ^ address of new sampled value

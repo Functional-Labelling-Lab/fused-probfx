@@ -12,7 +12,6 @@
 
 module Data.WorldPeace.Extra
   ( IsMember(..)
-  , Contains
   ) where
 
 import           Data.Maybe      (Maybe)
@@ -38,7 +37,3 @@ instance {-# OVERLAPS #-} IsMember a as => IsMember a (a' : as) where
   unionMatch (WP.That u) = unionMatch u
   productGet (WP.Cons _ p) = productGet p
   productSet newA (WP.Cons a p) = WP.Cons a $ productSet newA p
-
-type family Contains (as :: [k]) (bs :: [k]) :: Constraint where
-  Contains '[] _ = ()
-  Contains (a ': as) bs = (IsMember a bs, Contains as bs)
