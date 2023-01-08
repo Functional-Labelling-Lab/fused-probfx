@@ -1,14 +1,11 @@
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators, TypeApplications, UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use camelCase" #-}
@@ -19,23 +16,22 @@ module BenchmarkTests where
 
 import qualified Data.Map as Map
 import BenchmarkPrograms
-import qualified Freer.Inference.SIM as SIM
-import qualified Freer.Inference.LW as LW
-import qualified Freer.Inference.MH as MH
-import Freer.Effects.State
-import Freer.Model
+import qualified Inference.SIM as SIM
+import qualified Inference.LW as LW
+import qualified Inference.MH as MH
+import Effects.State
+import Model
 import Sampler
-import Freer.Effects.ObsReader
+import Effects.ObsReader
 import Env
-import Util
 import Debug.Trace
 import Unsafe.Coerce
-import Freer.Trace
+import Trace
 import Criterion.Main
 import Criterion.Types
 import Control.DeepSeq
 
-configFile = defaultConfig {csvFile = Just "benchmarking/prob-fx/prob-fx-benchmarks.csv"}
+configFile = defaultConfig {csvFile = Just "prob-fx-benchmarks.csv"}
 
 benchmark :: forall a. NFData a
   => String                     -- benchmark group name

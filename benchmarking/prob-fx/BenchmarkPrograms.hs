@@ -28,7 +28,7 @@ import Effects.Lift
 import Sampler
 import Trace
 import OpenSum (OpenSum)
-import qualified OpenSum as OpenSum
+import qualified OpenSum
 import Control.Monad
 import Data.List as List
 import Unsafe.Coerce
@@ -95,7 +95,7 @@ lwLinRegr n_samples n_datapoints  = do
   let n_datapoints' = fromIntegral n_datapoints
       xs            = [0 .. n_datapoints']
       env           = (#y := [3*x | x <- xs]) <:> (#m := []) <:> (#c := []) <:> (#σ := []) <:>  nil
-  LW.lw n_samples linRegr (xs, env)
+  LW.lw n_samples (linRegr xs) env
   return ()
 
 mhLinRegr :: Int -> Int -> Sampler ()
@@ -103,7 +103,7 @@ mhLinRegr n_samples n_datapoints  = do
   let n_datapoints' = fromIntegral n_datapoints
       xs            = [0 .. n_datapoints']
       env           = (#y := [3*x | x <- xs]) <:> (#m := []) <:> (#c := []) <:> (#σ := []) <:>  nil
-  MH.mh n_samples (linRegr xs) [] env
+  MH.mh n_samples (linRegr xs) env []
   return ()
 
 {- HMM -}
@@ -115,7 +115,7 @@ type HMMEnv =
 
 transitionModel ::  Double -> Int -> Model env ts Int
 transitionModel transition_p x_prev = do
-  dX <- boolToInt <$> bernoulli' transition_p
+  dX <- fromEnum <$> bernoulli' transition_p
   return (dX + x_prev)
 
 observationModel :: (Observable env "y" Int)
@@ -153,12 +153,12 @@ simHMM n_samples hmm_length  = do
 
 lwHMM :: Int -> Int -> Sampler ()
 lwHMM n_samples hmm_length  = do
-  LW.lw n_samples (hmmNSteps hmm_length) (0, mkRecordHMMy hmm_data)
+  LW.lw n_samples (hmmNSteps hmm_length 0) (mkRecordHMMy hmm_data)
   return ()
 
 mhHMM :: Int -> Int -> Sampler ()
 mhHMM n_samples hmm_length  = do
-  MH.mh n_samples (hmmNSteps hmm_length 0) ["trans_p", "obs_p"] (mkRecordHMMy hmm_data)
+  MH.mh n_samples (hmmNSteps hmm_length 0) (mkRecordHMMy hmm_data) ["trans_p", "obs_p"]
   return ()
 
 {- Latent dirichlet allocation (topic model) -}
@@ -224,12 +224,12 @@ simLDA n_samples n_words  = do
 
 lwLDA :: Int -> Int -> Sampler ()
 lwLDA n_samples n_words  = do
-  let xs_envs = (n_words, #θ := [] <:>  #φ := [] <:> #w := topic_data <:> nil)
-  LW.lw n_samples (documentDist vocab 2) xs_envs
+  let xs_envs = #θ := [] <:>  #φ := [] <:> #w := topic_data <:> nil
+  LW.lw n_samples (documentDist vocab 2 n_words) xs_envs
   return ()
 
 mhLDA :: Int -> Int -> Sampler ()
 mhLDA n_samples n_words  = do
   let xs_envs = (n_words, #θ := [] <:>  #φ := [] <:> #w := topic_data <:> nil)
-  MH.mh n_samples (documentDist vocab 2 n_words) ["φ", "θ"]  (mkRecordTopic ([], [], topic_data))
+  MH.mh n_samples (documentDist vocab 2 n_words)  (mkRecordTopic ([], [], topic_data)) ["φ", "θ"]
   return ()
