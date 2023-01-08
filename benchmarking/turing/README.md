@@ -1,5 +1,5 @@
-## Benchmarks ussing Turing
-These benchmarks are euivalent to the others in probfx, fused-probfx and monad-bayes.
+## Benchmarks using Turing
+These benchmarks are equivalent to the others in probfx, fused-probfx and monad-bayes.
 
 ## Dependencies
 [Julia](https://julialang.org/) must be installed.
