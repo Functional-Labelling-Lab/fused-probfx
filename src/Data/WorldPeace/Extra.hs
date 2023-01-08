@@ -12,17 +12,26 @@
 
 module Data.WorldPeace.Extra
   ( IsMember(..)
+  , openUnionLift
+  , openUnionMatch
   ) where
 
-import           Data.Maybe      (Maybe)
-import qualified Data.WorldPeace as WP
-import Data.Kind (Constraint)
+import           Data.Functor.Identity (Identity (..))
+import           Data.Kind             (Constraint)
+import           Data.Maybe            (Maybe)
+import qualified Data.WorldPeace       as WP
 
 class IsMember a as where
   unionLift :: f a -> WP.Union f as
   unionMatch :: WP.Union f as -> Maybe (f a)
   productGet :: WP.Product f as -> f a
   productSet :: f a -> WP.Product f as -> WP.Product f as
+
+openUnionLift :: IsMember a as => a -> WP.OpenUnion as
+openUnionLift = unionLift . Identity
+
+openUnionMatch :: IsMember a as => WP.OpenUnion as -> Maybe a
+openUnionMatch = fmap runIdentity . unionMatch
 
 instance IsMember a (a : as) where
   unionLift a = WP.This a

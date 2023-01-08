@@ -1,7 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes     #-}
 {-# LANGUAGE ConstraintKinds         #-}
 {-# LANGUAGE DataKinds               #-}
-{-# LANGUAGE DeriveFunctor           #-}
 {-# LANGUAGE FlexibleContexts        #-}
 {-# LANGUAGE FlexibleInstances       #-}
 {-# LANGUAGE MonoLocalBinds          #-}
@@ -10,7 +9,6 @@
 {-# LANGUAGE RankNTypes              #-}
 {-# LANGUAGE ScopedTypeVariables     #-}
 {-# LANGUAGE TypeApplications        #-}
-{-# LANGUAGE TypeOperators           #-}
 {-# LANGUAGE UndecidableInstances    #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 
@@ -62,8 +60,8 @@ import           Control.Effect.ObsReader  (ObsReader, ask)
 import           Control.Effect.Sum        (Member, Members, (:+:))
 import           Control.Monad             (ap)
 import           Control.Monad.Trans.Class (MonadTrans (lift))
+import qualified Data.WorldPeace.Extra     as WPE
 import           Env                       (Env, ObsVar, Observable, varToStr)
-import qualified OpenSum
 import           PrimDist                  (PrimDist (..), PrimVal)
 
 newtype Model env sig m a = Model {runModel :: (Member (ObsReader env) sig, Member Dist sig, Algebra sig m) => m a}
@@ -110,13 +108,13 @@ envDist primDist field = do
   maybe_y <- Model $ ask @env field
   Model $ dist primDist maybe_y tag
 
-deterministic :: (Eq a, Show a, OpenSum.Member a PrimVal, Observable env x a)
+deterministic :: (Eq a, Show a, WPE.IsMember a PrimVal, Observable env x a)
   => a
   -> ObsVar x
   -> Model env sig m a
 deterministic x = envDist (DeterministicDist x)
 
-deterministic' :: (Eq a, Show a, OpenSum.Member a PrimVal)
+deterministic' :: (Eq a, Show a, WPE.IsMember a PrimVal)
   => a -- ^ value to be deterministically generated
   -> Model env sig m a
 deterministic' x =
@@ -144,13 +142,13 @@ discrete' ::
   -> Model env sig m Int -- ^ integer index from @0@ to @n - 1@
 discrete' ps = Model $ dist (DiscreteDist ps) Nothing Nothing
 
-categorical :: (Eq a, Show a, OpenSum.Member a PrimVal, Observable env x a)
+categorical :: (Eq a, Show a, WPE.IsMember a PrimVal, Observable env x a)
   => [(a, Double)]
   -> ObsVar x
   -> Model env sig m a
 categorical xs = envDist (CategoricalDist xs)
 
-categorical' :: (Eq a, Show a, OpenSum.Member a PrimVal)
+categorical' :: (Eq a, Show a, WPE.IsMember a PrimVal)
   => [(a, Double)] -- ^ primitive values and their probabilities
   -> Model env sig m a
 categorical' xs = Model $ dist (CategoricalDist xs) Nothing Nothing

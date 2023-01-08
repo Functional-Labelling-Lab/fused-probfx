@@ -6,13 +6,13 @@
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# LANGUAGE AllowAmbiguousTypes        #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 {- | Metropolis-Hastings inference.
 -}
@@ -40,21 +40,20 @@ import           Control.Effect.Sum            ((:+:) (L, R))
 import           Control.Monad                 ((>=>))
 import           Control.Monad.Trans           (MonadTrans (lift))
 import           Data.Kind                     (Type)
-import           Data.Map                      (Map)
 import qualified Data.Map                      as Map
 import           Data.Maybe                    (catMaybes, fromJust, fromMaybe)
 import           Data.Set                      (Set, (\\))
 import qualified Data.Set                      as Set
 import qualified Data.WorldPeace               as WP
 import qualified Data.WorldPeace.Extra         as WPE
-import           Data.WorldPeace.Product.Extra (MaybeIsMember (..), DefaultProduct(..), pfoldr)
+import           Data.WorldPeace.Product.Extra (DefaultProduct (..), pfoldr)
 import           Env                           (Assign (..),
                                                 ConstructProduct (..), Env,
-                                                ObsVar, nil, varToStr, ExtractVars, ExtractTypes, HasObsVar)
+                                                ExtractTypes, ExtractVars,
+                                                HasObsVar, ObsVar, nil,
+                                                varToStr)
 import           GHC.Types                     (Symbol)
 import           Model                         (Model, runModel)
-import           OpenSum                       (OpenSum (..))
-import qualified OpenSum
 import           PrimDist                      (Addr,
                                                 ErasedPrimDist (ErasedPrimDist),
                                                 PrimDist (DiscrUniformDist, UniformDist),
@@ -65,7 +64,8 @@ import           Trace                         (FromSTrace (..), LPTrace,
                                                 STrace, updateLPTrace)
 import           Unsafe.Coerce                 (unsafeCoerce)
 
--- SampObs effect carrier for the transition models
+-- | Carrier for the 'Control.Effect.SampObs' effect for simulating the
+--   transition models
 newtype SampObsTransC (m :: * -> *) (k :: *) = SampObsTransC { runSampObsTrans :: m k }
     deriving (Functor, Applicative, Monad)
 
@@ -77,7 +77,8 @@ instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsTransC 
     L _ -> error "Should not have used the observe since the environment is empty"
     R other -> alg (runSampObsTrans . hdl) other ctx
 
--- SampObs effect carrier for the primary model
+-- | Carrier for the 'Control.Effect.SampObs' effect for running MH on the
+--   primary model
 newtype SampObsC (m :: * -> *) (k :: *) = SampObsC { runSampObs :: ReaderC (TransitionMap, STrace, Addr) m k }
     deriving (Functor, Applicative, Monad)
 
@@ -91,28 +92,33 @@ instance (Has (Lift Sampler) sig m) => Algebra (SampObs :+: sig) (SampObsC m) wh
         pure $ x <$ ctx
     R other -> alg (runSampObs . hdl) (R other) ctx
 
--- Product setup for optional sample sites
+-- | Product interpretation for optional sample sites
 newtype ObsSite x = ObsSite (ObsVar x)
 
 instance ConstructProduct ObsSite x sampled (ObsVar x) where
   constructProduct = ObsSite
 
+-- | Optional sites for which variables to resample during MH
 type ObsSites env = WP.Product ObsSite env
 
--- Product setup for transition models
+-- | Product interpretation for variable transition models
 data Transition (sig :: (* -> *) -> * -> *) (m :: * -> *) (e :: Assign Symbol *) where
   Transition :: ObsVar x -> (a -> Model '[] sig m a) -> Transition sig m (x ':= a)
 
 instance HasObsVar x trans ~ False => ConstructProduct (Transition sig m) (x := a) trans (Assign (ObsVar x) (a -> Model '[] sig m a)) where
   constructProduct (x := trans) = Transition x trans
 
+-- | Transition models to resample variables with during execution; if a model
+--   is not specified the variable will be resampled using the
+--   original distribution
 type Transitions env = WP.Product (Transition (MhSig '[]) MhTransCarrier) env
 
--- Product setup for map from transition model types to dynamic tags
+-- | Transition model entry with the transition type removed from the signature
 data ErasedTransition sig m where
   ErasedTransition :: (a -> Model '[] sig m a) -> ErasedTransition sig m
 
-type TransitionMap = Map Tag (ErasedTransition (MhSig '[]) MhTransCarrier)
+-- | Map from dynamic values of variables to their transition model
+type TransitionMap = Map.Map Tag (ErasedTransition (MhSig '[]) MhTransCarrier)
 
 -- Effect and carrier for the primary model
 type MhSig env = ObsReader env :+: Dist :+: SampObs :+: Lift Sampler
@@ -126,9 +132,9 @@ type MhTransCarrier =  ObsReaderC '[] (DistC (SampObsTransC (LiftC Sampler)))
 mh :: forall env trans a sampled. (FromSTrace env, WP.Contains trans env, WP.Contains sampled (ExtractVars env))
   => Int -- number of MH samplings
   -> Model env (MhSig env) (MhCarrier env) a -- ^ model awaiting an input
-  -> Env env        -- ^ (model input, input model environment)
+  -> Env env           -- ^ (model input, input model environment)
   -> Transitions trans -- ^ Optional explicit transition models
-  -> ObsSites sampled -- ^ optional list of observable variable names (strings) to specify sample sites of interest
+  -> ObsSites sampled  -- ^ optional list of observable variable names (strings) to specify sample sites of interest
            {- For example, provide "mu" to specify interest in sampling #mu. This causes other variables to not be resampled unless necessary. -}
   -> Sampler [Env env] -- ^ [output model environment]
 mh n model env_0 trans tagsP = do
@@ -151,9 +157,9 @@ mh n model env_0 trans tagsP = do
 mhRaw :: forall env trans a sampled. (FromSTrace env, WP.Contains trans env, WP.Contains sampled (ExtractVars env))
   => Int -- number of MH samplings
   -> Model env (MhSig env) (MhCarrier env) a -- ^ model awaiting an input
-  -> Env env        -- ^ (model input, input model environment)
-  -> Transitions trans -- ^ Optional explicit transition models
-  -> ObsSites sampled -- ^ optional list of observable variable names (strings) to specify sample sites of interest
+  -> Env env           -- ^ (model input, input model environment)
+  -> Transitions trans -- ^ optional explicit transition models
+  -> ObsSites sampled  -- ^ optional list of observable variable names (strings) to specify sample sites of interest
            {- For example, provide "mu" to specify interest in sampling #mu. This causes other variables to not be resampled unless necessary. -}
   -> Sampler [Env env] -- ^ [output model environment]
 mhRaw n model env_0 trans tagsP = do
@@ -175,10 +181,10 @@ mhRaw n model env_0 trans tagsP = do
 -- | Perform one step of MH
 mhStep ::
      Model env (MhSig env) (MhCarrier env) a -- ^ model
-  -> Env env          -- ^ model environment
-  -> TransitionMap -- ^ Optional explicit transition models
-  -> [Tag] -- ^ optional list of observable variable names (strings) to specify sample sites of interest
-  -> ((a, STrace), LPTrace) -- ^ trace of previous MH outputs
+  -> Env env       -- ^ model environment
+  -> TransitionMap -- ^ optional explicit transition models
+  -> [Tag]         -- ^ optional list of observable variable names (strings) to specify sample sites of interest
+  -> ((a, STrace), LPTrace)                 -- ^ trace of previous MH outputs
   -> Sampler (Maybe ((a, STrace), LPTrace)) -- ^ updated trace of MH outputs
 mhStep model env tranMaps tags trace = do
   -- Get previous mh output
@@ -202,13 +208,13 @@ mhStep model env tranMaps tags trace = do
 runMH ::
      Model env (MhSig env) (MhCarrier env) a -- ^ model
   -> Env env        -- ^ model environment
-  -> TransitionMap  -- ^ Optional explicit transition models
+  -> TransitionMap  -- ^ optional explicit transition models
   -> STrace         -- ^ sample trace of previous MH iteration
   -> Addr           -- ^ sample address of interest
   -> Sampler ((a, STrace), LPTrace) -- ^ (model output, sample trace, log-probability trace)
 runMH model env transMap strace α_samp =
-     runM $ runReader (transMap, strace, α_samp) 
-          $ runSampObs $ runLPTracer True $ runSampTracer $ runDist 
+     runM $ runReader (transMap, strace, α_samp)
+          $ runSampObs $ runLPTracer True $ runSampTracer $ runDist
           $ runObsReader env $ runModel model
 
 runTransModel :: Model '[] (MhSig '[]) MhTransCarrier a -> Sampler a -- ^ model
@@ -216,7 +222,7 @@ runTransModel model = runM $ runSampObsTrans $ runDist $ runObsReader nil $ runM
 
 -- | For a given address, look up a sampled value from a sample trace, returning
 --   it only if the primitive distribution it was sampled from matches the current one.
-lookupSample :: forall a. OpenSum.Member a PrimVal
+lookupSample :: forall a. WPE.IsMember a PrimVal
   => TransitionMap
   -> STrace     -- ^ sample trace
   -> PrimDist a -- ^ distribution to sample from
@@ -224,15 +230,15 @@ lookupSample :: forall a. OpenSum.Member a PrimVal
   -> Addr       -- ^ address of proposal sample site
   -> Sampler a
 lookupSample transMap samples d α@(t, _) α_samp
-  | α == α_samp =  fromMaybe (dist d) $ do 
+  | α == α_samp = fromMaybe (dist d) $ do
       (_, x) <- Map.lookup α samples
       (ErasedTransition trans) <- Map.lookup t transMap
-      return $ runTransModel $ unsafeCoerce trans $ fromJust $ OpenSum.prj @a x
-  | otherwise = fromMaybe (dist d) $ do 
+      return $ runTransModel $ unsafeCoerce trans $ fromJust $ WPE.openUnionMatch @a x
+  | otherwise = fromMaybe (dist d) $ do
         (ErasedPrimDist d', x) <- Map.lookup α samples
         return $
           if d == unsafeCoerce d'
-            then return (fromJust $ OpenSum.prj x)
+            then return (fromJust $ WPE.openUnionMatch x)
           else dist d
 
 -- | Compute acceptance probability

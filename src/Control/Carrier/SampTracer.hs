@@ -11,9 +11,12 @@
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 
-
+{- | Carrier for the 'Control.Effect.SampObs' effect for tracing the addresses
+     of its calls
+-}
 
 module Control.Carrier.SampTracer (SampTracerC, runSampTracer) where
+
 import           Control.Algebra            (Algebra (..), Handler, Has, send)
 import           Control.Carrier.State.Lazy (StateC, modify, runState)
 import           Control.Effect.SampObs     (SampObs (..))
@@ -26,9 +29,12 @@ import           Data.Tuple                 (swap)
 import           PrimDist                   (pattern PrimDistPrf)
 import           Trace                      (STrace, updateSTrace)
 
+-- | Carrier for the 'Control.Effect.SampObs' effect that captures the location
+--   and type of samplings made at runtime
 newtype SampTracerC (m :: * -> *) (k :: *) = SampTracerC { runSampTracerC :: StateC STrace m k }
   deriving (Functor, Applicative, Monad)
 
+-- | Executes the 'SampTracerC' carrier
 runSampTracer :: Functor m => SampTracerC m k -> m (k, STrace)
 runSampTracer = fmap swap . runState Map.empty . runSampTracerC
 

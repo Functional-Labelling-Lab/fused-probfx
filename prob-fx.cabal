@@ -42,9 +42,7 @@ library
                       Inference.MH,
                       Inference.SIM,
                       Env,
-                      FindElem,
                       Model,
-                      OpenSum,
                       PrimDist,
                       Sampler,
                       Trace

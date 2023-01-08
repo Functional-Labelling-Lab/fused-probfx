@@ -33,7 +33,8 @@ import           PrimDist                   (dist)
 import           Sampler                    (Sampler)
 import           Trace                      (FromSTrace (fromSTrace), STrace)
 
--- SampObs Effect Carrier
+-- | Carrier for the 'Control.Effect.SampObs' effect for simulating the
+--   probabilistic model
 newtype SampObsC (m :: * -> *) (k :: *) = SampObsC { runSampObs :: m k }
     deriving (Functor, Applicative, Monad)
 

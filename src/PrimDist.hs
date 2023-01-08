@@ -31,8 +31,8 @@ import           Data.Kind                               (Constraint)
 import qualified Data.Map                                as Map
 import qualified Data.Vector                             as V
 import qualified Data.Vector.Unboxed                     as UV
+import qualified Data.WorldPeace.Extra                   as WPE
 import           Numeric.Log                             (Log (..))
-import qualified OpenSum
 import           Sampler
 import           Statistics.Distribution                 (ContDistr (density),
                                                           DiscreteDistr (probability))
@@ -62,7 +62,7 @@ data PrimDist a where
     -> Double           -- ^ probability of successful trial
     -> PrimDist Int
   CategoricalDist
-    :: (Eq a, Show a, OpenSum.Member a PrimVal)
+    :: (Eq a, Show a, WPE.IsMember a PrimVal)
     => [(a, Double)]    -- ^ values and associated probabilities
     -> PrimDist a
   CauchyDist
@@ -73,7 +73,7 @@ data PrimDist a where
     :: Double           -- ^ scale
     -> PrimDist Double
   DeterministicDist
-    :: (Eq a, Show a, OpenSum.Member a PrimVal)
+    :: (Eq a, Show a, WPE.IsMember a PrimVal)
     => a                -- ^ value of probability @1@
     -> PrimDist a
   DirichletDist
@@ -160,10 +160,10 @@ type PrimVal = '[Int, Double, [Double], Bool, String]
 
 -- | Proof that @x@ is a primitive value
 data IsPrimVal x where
-  IsPrimVal :: (Show x, OpenSum.Member x PrimVal) => IsPrimVal x
+  IsPrimVal :: (Show x, WPE.IsMember x PrimVal) => IsPrimVal x
 
 -- | For pattern-matching on an arbitrary @PrimDist@ with proof that it generates a primitive value
-pattern PrimDistPrf :: () => (Show x, OpenSum.Member x PrimVal) => PrimDist x -> PrimDist x
+pattern PrimDistPrf :: () => (Show x, WPE.IsMember x PrimVal) => PrimDist x -> PrimDist x
 pattern PrimDistPrf d <- d@(primDistPrf -> IsPrimVal)
 
 -- | Proof that all primitive distributions generate a primitive value

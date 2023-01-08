@@ -10,7 +10,9 @@
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 
-
+{- | Carrier for the 'Control.Effect.SampObs' effect for 
+     log-probability calculation
+-}
 
 module Control.Carrier.LPTracer (LPTracerC, runLPTracer) where
 import           Control.Algebra            (Algebra (..), Handler, Has, send)
@@ -26,10 +28,16 @@ import           Data.Tuple                 (swap)
 import           PrimDist                   (pattern PrimDistPrf)
 import           Trace                      (LPTrace, updateLPTrace)
 
+-- | Carrier for the 'Control.Effect.SampObs' effect that captures a compounded
+--   log-probability for each observation (or sampling if included)
 newtype LPTracerC (m :: * -> *) (k :: *) = LPTracerC { runLPTracerC :: ReaderC Bool (StateC LPTrace m) k }
   deriving (Functor, Applicative, Monad)
 
-runLPTracer :: Functor m => Bool -> LPTracerC m k -> m (k, LPTrace)
+-- | Executes the 'LPTracerC' carrier
+runLPTracer :: Functor m
+  => Bool           -- ^ Whether the sampling actions should be included as well
+  -> LPTracerC m k
+  -> m (k, LPTrace)
 runLPTracer includeSample = fmap swap . runState Map.empty . runReader includeSample . runLPTracerC
 
 instance (Has SampObs (SampObs :+: sig) m) => Algebra (SampObs :+: sig) (LPTracerC m) where
