@@ -10,7 +10,7 @@ import Criterion.Types
 import Data.Bifunctor
 import Control.DeepSeq
 
-configFile = defaultConfig {csvFile = Just "monad-bayes-benchmarks.csv"}
+configFile = defaultConfig {csvFile = Just "benchmark-results.csv"}
 
 {- log Regression -}
 

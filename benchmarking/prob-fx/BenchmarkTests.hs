@@ -31,7 +31,7 @@ import Criterion.Main
 import Criterion.Types
 import Control.DeepSeq
 
-configFile = defaultConfig {csvFile = Just "prob-fx-benchmarks.csv"}
+configFile = defaultConfig {csvFile = Just "benchmark-results.csv"}
 
 benchmark :: forall a. NFData a
   => String                     -- benchmark group name

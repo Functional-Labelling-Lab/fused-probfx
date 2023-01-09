@@ -174,7 +174,7 @@ end
 
 function parseBenchmark(label, b)
   df = DataFrame(Name = label, Mean = mean(b.times)/(1000000000))
-  CSV.write("turing-benchmarks.csv", df, append=true)
+  CSV.write("../benchmark-results.csv", df, append=true)
 end
 
 macro benchmarkSampleSize(name, src, method, samplesizes)
