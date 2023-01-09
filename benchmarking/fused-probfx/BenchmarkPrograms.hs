@@ -19,12 +19,7 @@ module BenchmarkPrograms where
 
 import GHC.OverloadedLabels
 -- import Effects.Reader
-import Effects.ObsReader
-import Effects.State
-import Effects.Writer
 import Model
-import Effects.Dist
-import Effects.Lift
 import Sampler
 import Trace
 import OpenSum (OpenSum)
@@ -43,15 +38,25 @@ import qualified Data.Map as Map
 import qualified Inference.SIM as SIM
 import qualified Inference.LW as LW
 import qualified Inference.MH as MH
+import Control.Effect.ObsReader (ObsReader)
+import Control.Effect.Dist (Dist)
+import Control.Carrier.State.Lazy (State)
+import Control.Effect.SampObs (SampObs)
+import Control.Algebra (Has)
 
-simulateMany :: forall env es b a. (FromSTrace env, es ~ '[ObsReader env, Dist, State STrace, Observe, Sample])
+simulateMany :: forall env sig b a m. (
+    FromSTrace env,
+    Has (ObsReader env) sig m,
+    Has Dist sig m,
+    Has (State STrace) sig m,
+    Has SampObs sig m)
   => Int                             -- Number of iterations per data point
-  -> (b -> Model env es a)           -- Model awaiting input variable
+  -> (b -> Model env sig m a)           -- Model awaiting input variable
   -> [b]                             -- List of model input variables
   -> [Env env]                      -- List of model observed variables
   -> Sampler [(a, Env env)]
 simulateMany n model xs envs = do
-  let runN (x, env) = replicateM n (SIM.runSimulate (model x) env)
+  let runN (x, env) = replicateM n (SIM.runSimulate env (model x))
   outputs_smaps <- concat <$> mapM runN (zip xs envs)
   let outputs_envs = map (fmap (fromSTrace @env)) outputs_smaps
   return outputs_envs
@@ -65,9 +70,9 @@ type LinRegrEnv =
         "σ" ':=  Double
      ]
 
-linRegr :: forall env rs .
+linRegr :: forall env rs sig m.
   Observables env '["y", "m", "c", "σ"] Double =>
-  [Double] -> Model env rs [Double]
+  [Double] -> Model env sig m [Double]
 linRegr xs = do
   m <- normal 0 3 #m
   c <- normal 0 5 #c
@@ -95,7 +100,7 @@ lwLinRegr n_samples n_datapoints  = do
   let n_datapoints' = fromIntegral n_datapoints
       xs            = [0 .. n_datapoints']
       env           = (#y := [3*x | x <- xs]) <:> (#m := []) <:> (#c := []) <:> (#σ := []) <:>  nil
-  LW.lw n_samples (linRegr xs) env
+  LW.lw n_samples env (linRegr xs)
   return ()
 
 mhLinRegr :: Int -> Int -> Sampler ()
@@ -113,25 +118,25 @@ type HMMEnv =
      "obs_p"   ':= Double
    ]
 
-transitionModel ::  Double -> Int -> Model env ts Int
+transitionModel ::  Double -> Int -> Model env sig m Int
 transitionModel transition_p x_prev = do
   dX <- fromEnum <$> bernoulli' transition_p
   return (dX + x_prev)
 
 observationModel :: (Observable env "y" Int)
-  => Double -> Int -> Model env ts Int
+  => Double -> Int -> Model env sig m Int
 observationModel observation_p x = do
   binomial x observation_p #y
 
 hmmNode :: (Observable env "y" Int)
-  => Double -> Double -> Int -> Model env ts Int
+  => Double -> Double -> Int -> Model env sig m Int
 hmmNode transition_p observation_p x_prev = do
   x_n <- transitionModel  transition_p x_prev
   y_n <- observationModel observation_p x_n
   return x_n
 
 hmmNSteps :: (Observable env "y" Int, Observables env '["obs_p", "trans_p"] Double)
-  => Int -> (Int -> Model env ts Int)
+  => Int -> (Int -> Model env sig m Int)
 hmmNSteps n x = do
   trans_p <- uniform 0 1 #trans_p
   obs_p   <- uniform 0 1 #obs_p
@@ -153,7 +158,7 @@ simHMM n_samples hmm_length  = do
 
 lwHMM :: Int -> Int -> Sampler ()
 lwHMM n_samples hmm_length  = do
-  LW.lw n_samples (hmmNSteps hmm_length 0) (mkRecordHMMy hmm_data)
+  LW.lw n_samples (mkRecordHMMy hmm_data) (hmmNSteps hmm_length 0) 
   return ()
 
 mhHMM :: Int -> Int -> Sampler ()
@@ -169,22 +174,22 @@ type TopicEnv =
    ]
 
 wordDist :: Observable env "w" String =>
-  [String] -> [Double] -> Model env ts String
+  [String] -> [Double] -> Model env sig m String
 wordDist vocab ps =
   categorical (zip vocab ps) #w
 
 topicWordPrior :: Observable env "φ" [Double]
-  => [String] -> Model env ts [Double]
+  => [String] -> Model env sig m [Double]
 topicWordPrior vocab
   = dirichlet (replicate (length vocab) 1) #φ
 
 docTopicPrior :: Observable env "θ" [Double]
-  => Int -> Model env ts [Double]
+  => Int -> Model env sig m [Double]
 docTopicPrior n_topics = dirichlet (replicate n_topics 1) #θ
 
 documentDist :: (Observables env '["φ", "θ"] [Double],
                  Observable env "w" String)
-  => [String] -> Int -> Int -> Model env ts [String]
+  => [String] -> Int -> Int -> Model env sig m [String]
 documentDist vocab n_topics n_words = do
   -- Generate distribution over words for each topic
   topic_word_ps <- replicateM n_topics $ topicWordPrior vocab
@@ -199,7 +204,7 @@ topicModel :: (Observables env '["φ", "θ"] [Double],
   => [String] ->
      Int      ->
      [Int]    ->
-     Model env ts [[String]]
+     Model env sig m [[String]]
 topicModel vocab n_topics doc_words = do
   mapM (documentDist vocab n_topics) doc_words
 
@@ -215,7 +220,8 @@ mkRecordTopic (tps, wps, ys) =  #θ := tps <:>  #φ := wps <:> #w := ys <:> nil
 
 simLDA :: Int -> Int -> Sampler ()
 simLDA n_samples n_words  = do
-  let params = #θ := [[0.5, 0.5]] <:>
+  let params :: Env '["θ" ':= [Double], "φ" ':= [Double], "w" ':= String]
+      params = #θ := [[0.5, 0.5]] <:>
                #φ := [[0.12491280814569208,1.9941599739151505e-2,0.5385152817942926,0.3166303103208638],
                       [1.72605174564027e-2,2.9475900240868515e-2,9.906011619752661e-2,0.8542034661052021]] <:>
                #w := [] <:> nil
@@ -224,12 +230,14 @@ simLDA n_samples n_words  = do
 
 lwLDA :: Int -> Int -> Sampler ()
 lwLDA n_samples n_words  = do
-  let xs_envs = #θ := [] <:>  #φ := [] <:> #w := topic_data <:> nil
-  LW.lw n_samples (documentDist vocab 2 n_words) xs_envs
+  let xs_envs :: Env '["θ" ':= [Double], "φ" ':= [Double], "w" ':= String]
+      xs_envs = #θ := [] <:>  #φ := [] <:> #w := topic_data <:> nil
+  LW.lw n_samples xs_envs (documentDist vocab 2 n_words)
   return ()
 
 mhLDA :: Int -> Int -> Sampler ()
 mhLDA n_samples n_words  = do
-  let xs_envs = (n_words, #θ := [] <:>  #φ := [] <:> #w := topic_data <:> nil)
+  let xs_envs :: (Int, Env '["θ" ':= [Double], "φ" ':= [Double], "w" ':= String])
+      xs_envs = (n_words, #θ := [] <:>  #φ := [] <:> #w := topic_data <:> nil)
   MH.mh n_samples (documentDist vocab 2 n_words)  (mkRecordTopic ([], [], topic_data)) ["φ", "θ"]
   return ()

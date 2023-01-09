@@ -19,10 +19,8 @@ import BenchmarkPrograms
 import qualified Inference.SIM as SIM
 import qualified Inference.LW as LW
 import qualified Inference.MH as MH
-import Effects.State
 import Model
 import Sampler
-import Effects.ObsReader
 import Env
 import Debug.Trace
 import Unsafe.Coerce
