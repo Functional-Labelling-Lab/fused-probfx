@@ -1,11 +1,11 @@
 cabal-version:      2.4
-name:               prob-fx-benchmarking
+name:               fused-probfx-benchmarking
 version:            0.1.0.0
 synopsis:           Benchmarks for mbayes
-author:             min-nguyen
-maintainer:         minhnguyen1995@googlemail.com
+author:             Oliver Killane
+maintainer:         oliverkillane@gmail.com
 
-executable prob-fx-benchmarking
+executable fused-probfx-benchmarking
   main-is:             Main.hs
 
   other-modules:       BenchmarkPrograms,
