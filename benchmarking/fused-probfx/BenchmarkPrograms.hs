@@ -42,16 +42,18 @@ import Control.Effect.ObsReader (ObsReader)
 import Control.Effect.Dist (Dist)
 import Control.Carrier.State.Lazy (State)
 import Control.Effect.SampObs (SampObs)
-import Control.Algebra (Has)
+import Control.Algebra (Has, (:+:))
+import Control.Effect.Lift (Lift)
+import Control.Carrier.ObsReader (ObsReaderC)
+import Control.Carrier.Dist (DistC)
+import Control.Carrier.SampTracer (SampTracerC)
+import Inference.SIM (SampObsC)
+import Control.Carrier.Lift (LiftC)
 
-simulateMany :: forall env sig b a m. (
-    FromSTrace env,
-    Has (ObsReader env) sig m,
-    Has Dist sig m,
-    Has (State STrace) sig m,
-    Has SampObs sig m)
+simulateMany :: forall env b a.
+    FromSTrace env
   => Int                             -- Number of iterations per data point
-  -> (b -> Model env sig m a)           -- Model awaiting input variable
+  -> (b -> Model env (ObsReader env :+: (Dist :+: (SampObs :+: Lift Sampler))) (ObsReaderC env (DistC (SampTracerC (SampObsC (LiftC Sampler))))) a)           -- Model awaiting input variable
   -> [b]                             -- List of model input variables
   -> [Env env]                      -- List of model observed variables
   -> Sampler [(a, Env env)]
@@ -99,6 +101,7 @@ lwLinRegr :: Int -> Int -> Sampler ()
 lwLinRegr n_samples n_datapoints  = do
   let n_datapoints' = fromIntegral n_datapoints
       xs            = [0 .. n_datapoints']
+      env :: Env '["y" ':= Double, "m" ':= Double, "c" ':= Double, "σ" ':= Double]
       env           = (#y := [3*x | x <- xs]) <:> (#m := []) <:> (#c := []) <:> (#σ := []) <:>  nil
   LW.lw n_samples env (linRegr xs)
   return ()
@@ -107,6 +110,7 @@ mhLinRegr :: Int -> Int -> Sampler ()
 mhLinRegr n_samples n_datapoints  = do
   let n_datapoints' = fromIntegral n_datapoints
       xs            = [0 .. n_datapoints']
+      env :: Env '["y" ':= Double, "m" ':= Double, "c" ':= Double, "σ" ':= Double]
       env           = (#y := [3*x | x <- xs]) <:> (#m := []) <:> (#c := []) <:> (#σ := []) <:>  nil
   MH.mh n_samples (linRegr xs) env []
   return ()
