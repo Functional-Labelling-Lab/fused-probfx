@@ -1,13 +1,9 @@
 cabal-version:       3.0
-name:                prob-fx
-version:             0.1.6.0
-license:             BSD-3-Clause
-license-file:        LICENSE.md
-copyright:           2022 Minh Nguyen
+name:                fused-probfx
+version:             0.0.0.1
 stability:           experimental
-author:              Minh Nguyen
-maintainer:          minhnguyen1995@googlemail.com
-homepage:            https://github.com/min-nguyen/prob-fx/
+author:              Functional-Labelling-Lab
+homepage:            https://github.com/Functional-Labelling-Lab/fused-probfx
 synopsis:            A library for modular probabilistic modelling
 description:
   A library for probabilistic programming using algebraic effects. The
@@ -83,7 +79,7 @@ library
   default-language:    Haskell2010
   ghc-options:         -funfolding-use-threshold=16 -fexcess-precision -optc-O3 -optc-ffast-math
 
-executable prob-fx
+executable fused-probfx
   default-language: Haskell2010
   hs-source-dirs: examples
   main-is:        Main.hs
@@ -98,7 +94,7 @@ executable prob-fx
                   SIR,
                   SIRNonModular,
   build-depends:  base,
-                  prob-fx,
+                  fused-probfx,
                   lens,
                   extensible,
                   fused-effects
@@ -117,8 +113,29 @@ test-suite tests
                       containers,
                       extensible,
                       split,
-                      prob-fx,
+                      fused-probfx,
                       HUnit >= 1.6.0 && < 1.7.0,
                       lens,
                       fused-effects
   default-language:   Haskell2010
+
+executable benchmark
+  -- .hs or .lhs file containing the Main module.
+  main-is:             Main.hs
+
+  -- Modules included in this executable, other than Main.
+  other-modules:       BenchmarkPrograms,
+                       BenchmarkTests
+
+
+  -- Other library packages from which modules are imported.
+  build-depends:       base,
+                       containers,
+                       criterion,
+                       deepseq,
+                       extensible,
+                       fused-probfx,
+                       fused-effects
+  hs-source-dirs:      benchmarking/fused-probfx
+  default-language:    Haskell2010
+  ghc-options:         -O2 -rtsopts -funfolding-use-threshold=16 -fexcess-precision -optc-O3 -optc-ffast-math
