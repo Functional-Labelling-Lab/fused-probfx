@@ -3,7 +3,7 @@
 {-# LANGUAGE GADTs            #-}
 {-# LANGUAGE KindSignatures   #-}
 
-{- | The effect for primitive distributions.
+{- | The effect for primitive distributions
 -}
 
 module Control.Effect.Dist (
@@ -23,5 +23,9 @@ data Dist (m :: Type -> Type) (k :: Type) where
          -> Maybe Tag  -- ^ optional observable variable name
          -> Dist m k
 
-dist :: (Has Dist sig m) => PrimDist k -> Maybe k -> Maybe Tag -> m k
+dist :: (Has Dist sig m)
+  => PrimDist k -- ^ primitive distribution
+  -> Maybe k    -- ^ optional observed value
+  -> Maybe Tag  -- ^ optional observable variable name
+  -> m k        -- ^ the sampled/observed value
 dist primDist obs tag = send $ Dist primDist obs tag

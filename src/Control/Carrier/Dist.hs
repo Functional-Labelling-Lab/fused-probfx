@@ -9,6 +9,9 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
+{- | Carrier for the 'Control.Effect.Dist' effect
+-}
+
 module Control.Carrier.Dist (
     DistC,
     runDist
@@ -26,13 +29,16 @@ import qualified Data.Map                     as Map
 import           Data.Maybe                   (fromMaybe)
 import           PrimDist                     (Tag)
 
+-- | Carrier for the top-level 'Control.Effect.Dist' effect that calculates the addresses
+--   of the calls and schedules calls to 'Control.Effect.SampObs' effect
 newtype DistC m k = DistC { runDistC :: StateC (Int, Map.Map Tag Int) m k }
     deriving (Functor, Applicative, Monad)
 
+-- | Executes the 'DistC' carrier
 runDist :: Functor m => DistC m a -> m a
 runDist = evalState (0, Map.empty) . runDistC
 
-instance (Algebra sig m, Has SampObs sig m) => Algebra (Dist :+: sig) (DistC m) where
+instance Has SampObs sig m => Algebra (Dist :+: sig) (DistC m) where
   alg hdl sig ctx = DistC $ case sig of
     L (Dist primDist mObs mTag) -> do
       -- Get current counter and tagMap

@@ -89,10 +89,11 @@ mkRecordHLR (mua, mub, siga, sigb, a, b, lograds) =
 -- | Simulate from the Radon model
 simRadon :: Sampler ([Double], [Double])
 simRadon = do
-  -- Specify model environment
-  let env_in = mkRecordHLR ([1.45], [-0.68], [0.3], [0.2], [], [], [])
+  let -- Specify model environment
+      env_in :: Env RadonEnv
+      env_in = mkRecordHLR ([1.45], [-0.68], [0.3], [0.2], [], [], [])
   -- Simulate model
-  (bs, env_out) <- SIM.simulate env_in (radonModel @RadonEnv n_counties dataFloorValues countyIdx)
+  (bs, env_out) <- SIM.simulate env_in (radonModel n_counties dataFloorValues countyIdx)
   -- Retrieve and return the radon-levels for houses with basements and those without basements
   let basementIdxs      = findIndexes 0 dataFloorValues
       noBasementIdxs    = findIndexes 1 dataFloorValues
@@ -103,10 +104,11 @@ simRadon = do
 -- | Run MH inference and return posterior for hyperparameter means of intercept and gradient
 mhRadonpost :: Sampler ([Double], [Double])
 mhRadonpost = do
-  -- Specify model environment
-  let env_in = mkRecordHLR ([], [], [], [], [], [], logRadon)
+  let -- Specify model environment
+      env_in :: Env RadonEnv
+      env_in = mkRecordHLR ([], [], [], [], [], [], logRadon)
   -- Run MH inference for 2000 iterations
-  env_outs <- MH.mhRaw 2000 (radonModel @RadonEnv n_counties dataFloorValues countyIdx) env_in ["mu_a", "mu_b", "sigma_a", "sigma_b"]
+  env_outs <- MH.mhRaw 2000 (radonModel n_counties dataFloorValues countyIdx) env_in nil (#mu_a <:> #mu_b <:> #sigma_a <:> #sigma_b <:> nil)
   -- Retrieve sampled values for model hyperparameters mu_a and mu_b
   let mu_a   = concatMap (get #mu_a)  env_outs
       mu_b   = concatMap (get #mu_a)  env_outs
@@ -116,9 +118,11 @@ mhRadonpost = do
 mhRadon :: Sampler ([Double], [Double])
 mhRadon = do
   -- Specify model environment
-  let env_in = mkRecordHLR ([], [], [], [], [], [], logRadon)
+  let -- Specify model environment
+      env_in :: Env RadonEnv
+      env_in = mkRecordHLR ([], [], [], [], [], [], logRadon)
   -- Run MH inference for 1500 iterations
-  env_outs <- MH.mhRaw 1500 (radonModel @RadonEnv n_counties dataFloorValues countyIdx) env_in ["mu_a", "mu_b", "sigma_a", "sigma_b"]
+  env_outs <- MH.mhRaw 1500 (radonModel @RadonEnv n_counties dataFloorValues countyIdx) env_in nil (#mu_a <:> #mu_b <:> #sigma_a <:> #sigma_b <:> nil)
   -- Retrieve most recently sampled values for each house's intercept and gradient, a and b
   let env_pred = head env_outs
       as       = get #a env_pred

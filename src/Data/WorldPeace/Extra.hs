@@ -12,10 +12,14 @@
 
 module Data.WorldPeace.Extra
   ( IsMember(..)
+  , openUnionLift
+  , openUnionMatch
   ) where
 
-import           Data.Maybe      (Maybe)
-import qualified Data.WorldPeace as WP
+import           Data.Functor.Identity (Identity (..))
+import           Data.Kind             (Constraint)
+import           Data.Maybe            (Maybe)
+import qualified Data.WorldPeace       as WP
 
 class IsMember a as where
   unionLift :: f a -> WP.Union f as
@@ -23,8 +27,13 @@ class IsMember a as where
   productGet :: WP.Product f as -> f a
   productSet :: f a -> WP.Product f as -> WP.Product f as
 
+openUnionLift :: IsMember a as => a -> WP.OpenUnion as
+openUnionLift = unionLift . Identity
 
-instance {-# OVERLAPS #-} IsMember a (a : as) where
+openUnionMatch :: IsMember a as => WP.OpenUnion as -> Maybe a
+openUnionMatch = fmap runIdentity . unionMatch
+
+instance IsMember a (a : as) where
   unionLift a = WP.This a
   unionMatch (WP.This a) = Just a
   unionMatch (WP.That _) = Nothing

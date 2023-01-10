@@ -13,7 +13,7 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
-{- | The effect for reading observable variables from a model environment.
+{- | Carrier for the 'Control.Effect.ObsReader' effect.
 -}
 
 module Control.Carrier.ObsReader (
@@ -33,9 +33,12 @@ import           Env                        (Assign, Env, EnvElem (..), ObsVar,
                                              Observable, get, set)
 import           GHC.Base                   (Symbol)
 
+-- | Carrier for the top-level 'Control.Effect.ObsReader' effect that pops a value from
+--   a list for the specified variable in the environment
 newtype ObsReaderC (env :: [Assign Symbol *]) m k = ObsReaderC { runObsReaderC :: StateC (Env env) m k }
     deriving (Functor, Applicative, Monad)
 
+-- | Executes the 'ObsReaderC' carrier with the specified environment
 runObsReader :: Functor m => Env env -> ObsReaderC env m a -> m a
 runObsReader env (ObsReaderC runObsReaderC) = evalState env runObsReaderC
 

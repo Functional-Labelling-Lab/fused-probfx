@@ -19,25 +19,23 @@ module Trace (
   , LPTrace
   , updateLPTrace) where
 
-import           Data.Map                      (Map)
-import qualified Data.Map                      as Map
-import           Data.Maybe                    (fromJust)
-import           Data.Proxy                    (Proxy (..))
-import           Data.WorldPeace               (Product (Cons))
-import           Data.WorldPeace.Product.Extra (Elem)
-import           Env                           (Assign ((:=)), Env,
-                                                EnvElem (..), HasObsVar,
-                                                ObsVar (..), nil, varToStr)
-import           GHC.TypeLits                  (KnownSymbol)
-import           OpenSum                       (OpenSum)
-import qualified OpenSum
-import           PrimDist                      (Addr, ErasedPrimDist (..),
-                                                PrimDist, PrimVal, logProb)
+import           Data.Map              (Map)
+import qualified Data.Map              as Map
+import           Data.Maybe            (fromJust)
+import           Data.Proxy            (Proxy (..))
+import           Data.WorldPeace       (Product (Cons))
+import qualified Data.WorldPeace       as WP
+import qualified Data.WorldPeace.Extra as WPE
+import           Env                   (Assign ((:=)), Env, EnvElem (..),
+                                        HasObsVar, ObsVar (..), nil, varToStr)
+import           GHC.TypeLits          (KnownSymbol)
+import           PrimDist              (Addr, ErasedPrimDist (..), PrimDist,
+                                        PrimVal, logProb)
 
 {- | The type of sample traces, mapping addresses of sample/observe operations
      to their primitive distributions and sampled values.
 -}
-type STrace = Map Addr (ErasedPrimDist, OpenSum PrimVal)
+type STrace = Map Addr (ErasedPrimDist, WP.OpenUnion PrimVal)
 
 -- | For converting sample traces to model environments
 class FromSTrace env where
@@ -47,23 +45,23 @@ class FromSTrace env where
 instance FromSTrace '[] where
   fromSTrace _ = nil
 
-instance (HasObsVar x env ~ False, KnownSymbol x, Eq a, OpenSum.Member a PrimVal, FromSTrace env) => FromSTrace ((x := a) : env) where
+instance (HasObsVar x env ~ False, KnownSymbol x, Eq a, WPE.IsMember a PrimVal, FromSTrace env) => FromSTrace ((x := a) : env) where
   fromSTrace sMap = Cons (Elem $ extractSamples (ObsVar @x, Proxy @a) sMap) (fromSTrace sMap)
 
-extractSamples ::  forall a x. (Eq a, OpenSum.Member a PrimVal) => (ObsVar x, Proxy a) -> STrace -> [a]
+extractSamples ::  forall a x. (Eq a, WPE.IsMember a PrimVal) => (ObsVar x, Proxy a) -> STrace -> [a]
 extractSamples (x, typ)  =
-    map (fromJust . OpenSum.prj @a . snd . snd)
+    map (fromJust . WPE.openUnionMatch @a . snd . snd)
   . Map.toList
   . Map.filterWithKey (\(tag, _) _ -> tag == varToStr x)
 
 -- | Update a sample trace at an address
-updateSTrace :: (Show x, OpenSum.Member x PrimVal) =>
+updateSTrace :: (Show x, WPE.IsMember x PrimVal) =>
      Addr       -- ^ address of sample site
   -> PrimDist x -- ^ primitive distribution at address
   -> x          -- ^ sampled value
   -> STrace     -- ^ previous sample trace
   -> STrace     -- ^ updated sample trace
-updateSTrace α d x = Map.insert α (ErasedPrimDist d, OpenSum.inj x)
+updateSTrace α d x = Map.insert α (ErasedPrimDist d, WPE.openUnionLift x)
 
 {- | The type of log-probability traces, mapping addresses of sample/observe operations
      to their log probabilities

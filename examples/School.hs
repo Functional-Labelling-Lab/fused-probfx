@@ -18,7 +18,7 @@ import           Control.Algebra (Has)
 import           Control.Monad   (replicateM)
 import           Data.Kind       (Constraint)
 import           Env             (Assign ((:=)), nil, Observable, get,
-                                  Observables, (<:>))
+                                  Observables, (<:>), Env)
 import           Inference.MH    as MH (mhRaw)
 import           Model           (Model, deterministic, halfNormal', normal,
                                   normal')
@@ -55,9 +55,10 @@ mhSchool = do
       ys        = [28 :: Double, 8, -3,   7, -1,  1, 18, 12]
       sigmas    = [15, 10, 16, 11,  9, 11, 10, 18]
   -- Specify model environment
-      env       = #mu := ([] :: [Double]) <:> #theta := ([] :: [[Double]]) <:> #y := ys <:> nil
+      env :: Env SchEnv
+      env       = #mu := [] <:> #theta := [] <:> #y := ys <:> nil
   -- Run MH inference for 10000 iterations
-  env_mh_out <- MH.mhRaw 10000 (schoolModel n_schools sigmas) env ["mu", "theta"]
+  env_mh_out <- MH.mhRaw 10000 (schoolModel n_schools sigmas) env nil (#mu <:> #theta <:> nil)
   -- Retrieve and returns the trace of model parameters mu and theta
   let mus    = concatMap (get #mu) env_mh_out
       thetas = concatMap (get #theta) env_mh_out

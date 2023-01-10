@@ -79,8 +79,9 @@ inferLwLogRegr :: Sampler [(Double, Double)]
 inferLwLogRegr = do
   -- Get values from simulating log regr
   (xs, ys) <- unzip <$> simulateLogRegr
-  -- Define environment for inference, providing observed values for the model outputs
-  let env = (#y := ys) <:> (#m := []) <:> (#b := []) <:> nil
+  let -- Define environment for inference, providing observed values for the model outputs
+      env :: Env LogRegrEnv
+      env = (#y := ys) <:> (#m := []) <:> (#b := []) <:> nil
   -- Run LW inference for 20000 iterations
   lwTrace :: [(Env LogRegrEnv, Double)] <- LW.lw 20000 env $ logRegr @LogRegrEnv xs
   let -- Get output of LW, extract mu samples, and pair with likelihood-weighting ps
@@ -94,11 +95,12 @@ inferMHLogRegr = do
   -- Get values from simulating log regr
   (xs, ys) <- unzip <$> simulateLogRegr
   let -- Define an environment for inference, providing observed values for the model outputs
+      env :: Env LogRegrEnv
       env = (#y := ys) <:> (#m := []) <:> (#b := []) <:> nil
   -- Run MH inference for 20000 iterations
   {- The agument ["m", "b"] is optional for indicating interest in learning #m and #b in particular,
      causing other variables to not be resampled (unless necessary) during MH. -}
-  mhTrace <- MH.mhRaw 50000 (logRegr @LogRegrEnv xs) env ["m", "b"]
+  mhTrace <- MH.mhRaw 50000 (logRegr xs) env nil (#m <:> #b <:> nil)
   -- Retrieve values sampled for #m and #b during MH
   let m_samples = concatMap (get #m) mhTrace
       b_samples = concatMap (get #b) mhTrace

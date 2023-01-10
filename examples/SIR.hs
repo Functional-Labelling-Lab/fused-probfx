@@ -135,7 +135,8 @@ simulateSIR = do
   -- Specify model input of 762 susceptible and 1 infected
   let sir_0      = #s @= 762 <: #i @= 1 <: #r @= 0 <: emptyRecord
   -- Specify model environment
-      sim_env_in = #β := [0.7 :: Double] <:> #γ := [0.009 :: Double] <:> #ρ := [0.3 :: Double] <:> #𝜉 := ([] :: [Int]) <:> nil
+      sim_env_in :: Env SIRenv
+      sim_env_in = #β := [0.7] <:> #γ := [0.009] <:> #ρ := [0.3] <:> #𝜉 := [] <:> nil
   -- Simulate an epidemic over 100 days
   ((sir_trace, _), sim_env_out) <- SIM.simulate sim_env_in $ hmmSIR 100 sir_0
   -- Get the observed infections over 100 days
@@ -152,9 +153,10 @@ inferSIR = do
   -- Specify model input of 762 susceptible and 1 infected
   let sir_0     = #s @= 762 <: #i @= 1 <: #r @= 0 <: emptyRecord
   -- Specify model environment
-      mh_env_in = #β := ([] :: [Double]) <:> #γ := [0.0085 :: Double] <:> #ρ := ([] :: [Double]) <:> #𝜉 := 𝜉s <:> nil
+      mh_env_in :: Env SIRenv
+      mh_env_in = #β := [] <:> #γ := [0.0085] <:> #ρ := [] <:> #𝜉 := 𝜉s <:> nil
   -- Run MH inference over 5000 iterations
-  mhTrace <- MH.mhRaw 5000 (hmmSIR 100 sir_0) mh_env_in ["β", "ρ"]
+  mhTrace <- MH.mhRaw 5000 (hmmSIR 100 sir_0) mh_env_in nil (#β <:> #ρ <:> nil)
   -- Get the sampled values for model parameters ρ and β
   let ρs = concatMap (get #ρ) mhTrace
       βs = concatMap (get #β) mhTrace
@@ -203,7 +205,8 @@ simulateSIRS = do
   -- Specify model input of 762 susceptible and 1 infected
   let sir_0      = #s @= 762 <: #i @= 1 <: #r @= 0 <: emptyRecord
   -- Specify model environment
-      sim_env_in = #β := [0.7 :: Double] <:> #γ := [0.009 :: Double] <:> #η := [0.05 :: Double] <:> #ρ := [0.3 :: Double] <:> #𝜉 := ([] :: [Int]) <:> nil
+      sim_env_in :: Env SIRSenv
+      sim_env_in = #β := [0.7] <:> #γ := [0.009] <:> #η := [0.05] <:> #ρ := [0.3] <:> #𝜉 := [] <:> nil
   -- Simulate an epidemic over 100 days
   ((sir_trace, _), sim_env_out) <- SIM.simulate sim_env_in $ hmmSIRS 100 sir_0
   -- Get the observed infections over 100 days
