@@ -112,7 +112,7 @@ mhLinRegr n_samples n_datapoints  = do
       xs            = [0 .. n_datapoints']
       env :: Env '["y" ':= Double, "m" ':= Double, "c" ':= Double, "σ" ':= Double]
       env           = (#y := [3*x | x <- xs]) <:> (#m := []) <:> (#c := []) <:> (#σ := []) <:>  nil
-  MH.mh n_samples (linRegr xs) env []
+  MH.mhRaw n_samples (linRegr xs) env []
   return ()
 
 {- HMM -}
@@ -167,7 +167,7 @@ lwHMM n_samples hmm_length  = do
 
 mhHMM :: Int -> Int -> Sampler ()
 mhHMM n_samples hmm_length  = do
-  MH.mh n_samples (hmmNSteps hmm_length 0) (mkRecordHMMy hmm_data) ["trans_p", "obs_p"]
+  MH.mhRaw n_samples (hmmNSteps hmm_length 0) (mkRecordHMMy hmm_data) ["trans_p", "obs_p"]
   return ()
 
 {- Latent dirichlet allocation (topic model) -}
@@ -243,5 +243,5 @@ mhLDA :: Int -> Int -> Sampler ()
 mhLDA n_samples n_words  = do
   let xs_envs :: (Int, Env '["θ" ':= [Double], "φ" ':= [Double], "w" ':= String])
       xs_envs = (n_words, #θ := [] <:>  #φ := [] <:> #w := topic_data <:> nil)
-  MH.mh n_samples (documentDist vocab 2 n_words)  (mkRecordTopic ([], [], topic_data)) ["φ", "θ"]
+  MH.mhRaw n_samples (documentDist vocab 2 n_words)  (mkRecordTopic ([], [], topic_data)) ["φ", "θ"]
   return ()
