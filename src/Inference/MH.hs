@@ -18,13 +18,13 @@
 -}
 
 module Inference.MH (
-    Transitions
-  , mh
+    mh
   , mhRaw
   , mhStep
   , runMH
   , lookupSample
-  , accept) where
+  , accept
+  , Transitions) where
 
 import           Control.Algebra               (Algebra (alg), Has)
 import           Control.Carrier.Dist          (DistC, runDist)
