@@ -18,6 +18,7 @@ import Prog (Member, call, Prog)
 type ModelEnv = '["x" := Double, "y" := Double, "z" := Double]
 type ModelTrans = '["x" := Double, "y" := Double]
 
+-- Basic Example
 model :: Observables env ["x", "y", "z"] Double => Double -> Double -> Model env sig Double
 model a b = do
     x <- normal 0 1 #x
@@ -31,6 +32,7 @@ simExample = sampleIO $ do
     (_, env_out) <- simulate (const $ model 1 1) env ()
     return (head $ get #y env_out, head $ get #z env_out)
 
+-- Example with Metropolis Hastings
 modelExp :: Observables env ["x", "y", "z"] Double => Model env sig Double
 modelExp = do
     x <- normal 0 1 #x
@@ -40,14 +42,15 @@ modelExp = do
 transModel :: Double -> Double -> Model env sig Double
 transModel std mean = normal' mean std
 
-advancedExample :: IO ([Double], [Double])
-advancedExample = sampleIO $ do
+mhExample :: IO ([Double], [Double])
+mhExample = sampleIO $ do
     let env :: Env ModelEnv
         env = (#x := []) <:> (#y := []) <:> (#z := [0]) <:> nil
 
     env_out <- mh 2 (const modelExp) ((), env) ["x"]
     return (map (head . get #x) env_out, map (head . get #y) env_out)
 
+-- Example with effects
 modelEff :: Observables env ["x", "y", "z"] Double => () -> Model env es ()
 modelEff _ = do
     x <- normal 0 1 #x
