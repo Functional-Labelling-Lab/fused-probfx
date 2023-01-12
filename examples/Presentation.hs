@@ -18,11 +18,12 @@ import Control.Carrier.Lift (sendM)
 type ModelEnv = '["x" := Double, "y" := Double, "z" := Double]
 type ModelTrans = '["x" := Double, "y" := Double]
 
+-- Basic Example
 model :: Observables env ["x", "y", "z"] Double => Double -> Double -> Model env sig m Double
 model a b = do
     x <- normal 0 1 #x
     y <- uniform (-1) 1 #y
-    normal (a * x + b * y) 1 #z
+    normal (a * x + b * y) 0.1 #z
 
 simExample :: IO (Double, Double)
 simExample = sampleIO $ do
@@ -31,6 +32,9 @@ simExample = sampleIO $ do
     (_, env_out) <- simulate env (model 1 1)
     return (head $ get #y env_out, head $ get #z env_out)
 
+-- main = simExample >>= print
+
+-- Example with Metropolis Hastings
 modelExp :: Observables env ["x", "y", "z"] Double => Model env sig m Double
 modelExp = do
     x <- normal 0 1 #x
@@ -40,8 +44,8 @@ modelExp = do
 transModel :: Double -> Double -> Model env sig m Double
 transModel std mean = normal' mean std
 
-advancedExample :: IO ([Double], [Double])
-advancedExample = sampleIO $ do
+mhExample :: IO (Double, Double, Double)
+mhExample = sampleIO $ do
     let env :: Env ModelEnv
         env = (#x := []) <:> (#y := []) <:> (#z := [0]) <:> nil
 
@@ -49,8 +53,13 @@ advancedExample = sampleIO $ do
         trans = (#x := transModel 20) <:> (#y := transModel 1) <:> nil
 
     env_out <- mh 2 modelExp env trans (#x <:> nil)
-    return (map (head . get #x) env_out, map (head . get #y) env_out)
+    let x = head $ get #x $ head $ env_out
+    let y = head $ get #y $ head $ env_out
+    return (x, y, exp y - x)
 
+-- main = mhExample >>= print
+
+-- Example with effects
 modelEff :: (Has (Lift Sampler) sig m, Observables env ["x", "y", "z"] Double) => Model env sig m ()
 modelEff = do
     x <- normal 0 1 #x
@@ -66,11 +75,4 @@ effExample = sampleIO $ do
     simulate env modelEff
     return ()
 
-main = do
-    (y, z) <- simExample
-    print (y, z)
-
-    effExample
-
-    (xs, ys) <- advancedExample
-    print (head xs, head ys)
+-- main = effExample
