@@ -24,9 +24,9 @@ def collectbenchmarks():
 
     def insert_timing(bench: str, name: str, mean: float):
         if name in timings:
-            timings[bench][name] = mean
+            timings[name][bench] = mean
         else:
-            timings[bench] = {name: mean}
+            timings[name] = {bench: mean}
 
     def readcsv(benchmark: str):
         with open(f"{BENCHMARK_DIR}/{benchmark}/benchmark-results.csv") as f:
@@ -50,10 +50,11 @@ def collectbenchmarks():
     return timings, benchmark_dirs
 
 def displaytimings(timings: Dict[str, Dict[str, float]], benches: List[str]):
-    formatstring = "{:<20} " + len(benches) * "{:<10}"
+    formatstring = "|{:<30}|" + len(benches) * "{:<20}|"
     print(formatstring.format("Benchmark:", *benches))
+    print("|" + "-" * 30 + "|" + ("-" * 20 + "|") * 4)
     for (bench, res)  in timings.items():
-        print(formatstring.format(bench, *[res[name] for name in benches]))
+        print(formatstring.format(bench, *[res[name] if name in res else "" for name in benches]))
 
 if __name__ == "__main__":
     displaytimings(*collectbenchmarks())
