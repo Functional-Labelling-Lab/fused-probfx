@@ -103,3 +103,6 @@ In general, the process is:
     ```haskell
     sampleIO simulateLogRegr :: IO (Double, Bool)]
     ```
+
+## Development
+### [benchmarking](benchmarks/)

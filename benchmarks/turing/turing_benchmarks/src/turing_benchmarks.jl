@@ -172,9 +172,15 @@ end
 
 ##### Main
 
+benchmarkfile = "../benchmark-results.csv"
+
 function parseBenchmark(label, b)
   df = DataFrame(Name = label, Mean = mean(b.times)/(1000000000))
-  CSV.write("../benchmark-results.csv", df, append=true)
+  CSV.write(benchmarkfile, df, append=true)
+end
+
+function setupfile()
+  CSV.write(benchmarkfile,[], writeheader=true, header=["Name", "Mean"])
 end
 
 macro benchmarkSampleSize(name, src, method, samplesizes)
@@ -209,6 +215,8 @@ macro smalldatasizes() return :([40, 80, 120, 160, 200]) end
 
 
 function main()
+  setupfile()
+
   # LinRegr
   @benchmarkSampleSize("linRegr/Sim", linRegrSim, Prior, @samplesizes)
   @benchmarkSampleSize("linRegr/LW", linRegrInf, IS, @samplesizes)
@@ -237,4 +245,4 @@ end
 
 main()
 
-end # module
+end

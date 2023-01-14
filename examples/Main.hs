@@ -16,34 +16,35 @@ import           SIR                (inferSIR, simulateSIR, simulateSIRS,
                                      simulateSIRSV)
 import           System.Environment (getArgs)
 
-printThenWrite :: Show a => a -> IO ()
-printThenWrite a = print a >> writeFile "model-output.txt" (show a)
+printThenWrite :: Show a => String -> a -> IO ()
+printThenWrite f a = print a >> writeFile f (show a)
 
 availableCommands = "[simLinRegr, lwLinRegr, mhLinRegr, simSIR, simSIRS, simSIRSV, mhSIR, simLogRegr, lwLogRegr, mhLogRegr, simLDA, mhLDA, simRadon, mhRadon, mhSchool]"
 
-parseArgs :: String -> IO ()
-parseArgs cmd = case cmd of
-  "simLinRegr"  -> sampleIOFixed simulateLinRegr >>= printThenWrite
-  "lwLinRegr"   -> sampleIOFixed inferLwLinRegr >>= printThenWrite
-  "simSIR"      -> sampleIOFixed simulateSIR >>= printThenWrite
-  "simSIRS"     -> sampleIOFixed simulateSIRS >>= printThenWrite
-  "simSIRSV"    -> sampleIOFixed simulateSIRSV >>= printThenWrite
-  "mhSIR"       -> sampleIOFixed inferSIR >>= printThenWrite
+parseArgs :: String -> String -> IO ()
+parseArgs f cmd = case cmd of
+  "simLinRegr"  -> sampleIOFixed simulateLinRegr >>= printThenWrite f
+  "lwLinRegr"   -> sampleIOFixed inferLwLinRegr >>= printThenWrite f
+  "simSIR"      -> sampleIOFixed simulateSIR >>= printThenWrite f
+  "simSIRS"     -> sampleIOFixed simulateSIRS >>= printThenWrite f
+  "simSIRSV"    -> sampleIOFixed simulateSIRSV >>= printThenWrite f
+  "mhSIR"       -> sampleIOFixed inferSIR >>= printThenWrite f
 
-  "mhLinRegr"   -> sampleIOFixed inferMhLinRegr >>= printThenWrite
-  "simLogRegr"  -> sampleIOFixed simulateLogRegr >>= printThenWrite
-  "lwLogRegr"   -> sampleIOFixed inferLwLogRegr >>= printThenWrite
-  "mhLogRegr"   -> sampleIOFixed inferMHLogRegr >>= printThenWrite
-  "simLDA"      -> sampleIOFixed simLDA >>= printThenWrite
-  "mhLDA"       -> sampleIOFixed mhLDA >>= printThenWrite
-  "simRadon"    -> sampleIOFixed simRadon >>= printThenWrite
-  "mhRadon"     -> sampleIOFixed mhRadon >>= printThenWrite
-  "mhSchool"    -> sampleIOFixed mhSchool >>= printThenWrite
+  "mhLinRegr"   -> sampleIOFixed inferMhLinRegr >>= printThenWrite f
+  "simLogRegr"  -> sampleIOFixed simulateLogRegr >>= printThenWrite f
+  "lwLogRegr"   -> sampleIOFixed inferLwLogRegr >>= printThenWrite f
+  "mhLogRegr"   -> sampleIOFixed inferMHLogRegr >>= printThenWrite f
+  "simLDA"      -> sampleIOFixed simLDA >>= printThenWrite f
+  "mhLDA"       -> sampleIOFixed mhLDA >>= printThenWrite f
+  "simRadon"    -> sampleIOFixed simRadon >>= printThenWrite f
+  "mhRadon"     -> sampleIOFixed mhRadon >>= printThenWrite f
+  "mhSchool"    -> sampleIOFixed mhSchool >>= printThenWrite f
   _             -> putStrLn $ "unrecognised command: " ++ cmd ++ "\n"
                            ++ "available commands: " ++ availableCommands
 
 main :: IO ()
 main = do
   args <- getArgs
-  case args of []      -> print $ "no arguments provided to ProbFX. Available arguments: " ++ availableCommands
-               (a:as)  -> parseArgs a
+  case args of []       -> print $ "no arguments provided to ProbFX. Available arguments: " ++ availableCommands
+               (f:a:as) -> parseArgs f a
+               _        -> print $ "no arguments provided to ProbFX. Available arguments: " ++ availableCommands

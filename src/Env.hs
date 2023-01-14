@@ -61,10 +61,10 @@ varToStr ObsVar = symbolVal (Proxy @x)
 
 -- | Class for implementing the construction of a product type
 class ConstructProduct 
-    (f :: u -> *) -- ^ Product interpretation type
-    (a :: u)      -- ^ New type for the product
-    (as :: [u])   -- ^ Already existing product arguments (for conditioning the product construction on)
-    (c :: *)      -- ^ Input type to the join operator
+    (f :: u -> *) -- Product interpretation type
+    (a :: u)      -- New type for the product
+    (as :: [u])   -- Already existing product arguments (for conditioning the product construction on)
+    (c :: *)      -- Input type to the join operator
     | f c -> a, f a -> c where
   -- | Implements conversion from a join operator argument to the product representation
   constructProduct :: c -> f a

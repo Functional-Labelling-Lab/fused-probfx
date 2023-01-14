@@ -7,7 +7,7 @@ from scipy.special import expit
 import numpy as np
 from scipy.interpolate import make_interp_spline
 
-def save_multi_image(filename):
+def save_multi_image(filename: str):
    pp = PdfPages(filename)
    fig_nums = plt.get_fignums()
    figs = [plt.figure(n) for n in fig_nums]
@@ -16,8 +16,8 @@ def save_multi_image(filename):
    pp.close()
 
 def main():
-  arg  = sys.argv[1]
-  f    = open("model-output.txt", "r")
+  arg  = sys.argv[2]
+  f    = open(sys.argv[1], "r")
 
   data = ast.literal_eval(f.read().replace('-Infinity', '-2e308')) #
   color_map = plt.cm.get_cmap('Blues')
@@ -249,5 +249,6 @@ def main():
 
   save_multi_image("model-output.pdf")
   plt.show()
+
 if __name__ == "__main__":
   main()
