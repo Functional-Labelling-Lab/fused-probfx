@@ -1,18 +1,16 @@
 ![SEGP_logo](https://user-images.githubusercontent.com/44177991/212548900-e893d055-e3d0-4e4e-b018-73b65199a594.svg)
 
 ## What is fused-probfx?
-ProbFX is an dsl for probabilistic programming embedded within haskell.
+Fused-probfx is a dsl for probabilistic programming embedded within haskell.
 - Allows for multimodal models
 - Small and modular - easy to extend
 - Models are first-class
 - Written using [`fused-effects`](https://github.com/fused-effects/fused-effects)
 
-## Lineage?
+## Lineage
 This library originates from [ProbFX](https://github.com/min-nguyen/prob-fx)
 
-_"ProbFX is a library for probabilistic programming using algebraic effects that implements the paper [**Modular Probabilistic Models via Algebraic Effects**](https://github.com/min-nguyen/prob-fx/blob/main/paper.pdf) -- this paper provides a comprehensive motivation and walkthrough of this library. To have a more interactive and visual play-around with ProbFX, please see the [**artifact**](https://github.com/min-nguyen/prob-fx/tree/artifact) branch: this corresponds parts of the paper to the implementation, and also provides an executable version of ProbFX as a script."_
-
-In order to facilitate work on other projects we need probFX, but also need to adapt and extend for our own usage.
+In order to facilitate work on other projects we adapted and extended probFX and rewrote it to use the fused-effects algebraic effects system.
 - Moving to using fused-effects rather than a probFX specific effects implementation
 - Improving documentation and the provided interfaces
 - Improving extensibility
