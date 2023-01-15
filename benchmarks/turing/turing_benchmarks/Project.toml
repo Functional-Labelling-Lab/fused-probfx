@@ -1,0 +1,11 @@
+name = "turing_benchmarks"
+uuid = "15fe058e-0a39-4eba-9538-d8a1688e3f5b"
+authors = ["Oliver Killane <oliverkillane@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"

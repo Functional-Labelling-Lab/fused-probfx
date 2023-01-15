@@ -1,0 +1,3 @@
+packages: ../../*.cabal
+
+packages: ./fused-probfx-benchmarking.cabal

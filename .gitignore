@@ -3,10 +3,8 @@ upload-doc.sh
 *.png
 *.pdf
 dist-newstyle/
-model-output.txt
 sys
 *.csv
 *.dat                  
-!paper.pdf
 !.github
 .*
