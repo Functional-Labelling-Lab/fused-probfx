@@ -1,3 +1,5 @@
+![SEGP_logo](https://user-images.githubusercontent.com/44177991/212548900-e893d055-e3d0-4e4e-b018-73b65199a594.svg)
+
 ## What is fused-probfx?
 ProbFX is an dsl for probabilistic programming embedded within haskell.
 - Allows for multimodal models
